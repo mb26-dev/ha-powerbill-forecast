@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Powerbill Forecast",
+        "description": "Turn your energy meter into a live bill with tier tracking and a month-end forecast.",
+        "data": {
+          "name": "Name",
+          "source_entity": "Energy meter (kWh)",
+          "meter_type": "Meter type",
+          "reset_day": "Billing cycle starts on day",
+          "tariff": "Tariff",
+          "tiers": "Custom tiers",
+          "service_fee": "Monthly service fee",
+          "vat": "VAT",
+          "currency": "Currency (ISO code)",
+          "ft_entity": "Fuel adjustment (Ft) from entity",
+          "ft_value": "Fuel adjustment (Ft) per kWh"
+        },
+        "data_description": {
+          "source_entity": "A utility meter that resets every billing cycle, or a total meter that only counts up.",
+          "reset_day": "The day your utility reads the meter. PEA/MEA print it on the bill.",
+          "tiers": "Only for 'Custom tariff'. Format: 150=3.2484, 400=4.2218, *=4.4217 (upper kWh = price, * = everything above). One flat price: just the price.",
+          "service_fee": "Leave empty to use the value of the tariff.",
+          "vat": "Leave empty to use the value of the tariff.",
+          "currency": "Leave empty to use the tariff or Home Assistant currency.",
+          "ft_entity": "Optional. A sensor with the current surcharge per kWh, e.g. a scraped Ft value. Wins over the fixed value.",
+          "ft_value": "Surcharge added to every kWh (Thailand: Ft). Can be negative."
+        }
+      }
+    },
+    "error": {
+      "tiers_required": "Please enter the tiers of your custom tariff.",
+      "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217"
+    },
+    "abort": {
+      "already_configured": "This energy meter already has a forecast."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Powerbill Forecast",
+        "data": {
+          "source_entity": "Energy meter (kWh)",
+          "meter_type": "Meter type",
+          "reset_day": "Billing cycle starts on day",
+          "tariff": "Tariff",
+          "tiers": "Custom tiers",
+          "service_fee": "Monthly service fee",
+          "vat": "VAT",
+          "currency": "Currency (ISO code)",
+          "ft_entity": "Fuel adjustment (Ft) from entity",
+          "ft_value": "Fuel adjustment (Ft) per kWh"
+        },
+        "data_description": {
+          "tiers": "Only for 'Custom tariff'. Format: 150=3.2484, 400=4.2218, *=4.4217",
+          "service_fee": "Leave empty to use the value of the tariff.",
+          "vat": "Leave empty to use the value of the tariff.",
+          "ft_entity": "Optional. Wins over the fixed value."
+        }
+      }
+    },
+    "error": {
+      "tiers_required": "Please enter the tiers of your custom tariff.",
+      "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217"
+    }
+  },
+  "selector": {
+    "meter_type": {
+      "options": {
+        "cycle": "Resets every billing cycle (utility meter)",
+        "lifetime": "Counts up forever (total meter)"
+      }
+    }
+  }
+}
