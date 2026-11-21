@@ -1,0 +1,14 @@
+{
+  "domain": "powerbill_forecast",
+  "name": "Powerbill Forecast",
+  "after_dependencies": ["recorder"],
+  "codeowners": ["@mb26-dev"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http"],
+  "documentation": "https://github.com/mb26-dev/ha-powerbill-forecast",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/mb26-dev/ha-powerbill-forecast/issues",
+  "requirements": [],
+  "version": "0.1.0b1"
+}
