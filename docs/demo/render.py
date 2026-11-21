@@ -41,7 +41,7 @@ async def main() -> None:
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         for name, width, keys, open_details in SHOTS:
-            page = await browser.new_page(viewport={"width": width + 32, "height": 900}, device_scale_factor=2)
+            page = await browser.new_page(viewport={"width": width + 32, "height": 900}, device_scale_factor=2, timezone_id="Asia/Bangkok")
             html = (
                 PAGE.replace("%CARD%", CARD)
                 .replace("%WIDTH%", str(width))
