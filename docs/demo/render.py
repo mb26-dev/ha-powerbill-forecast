@@ -1,6 +1,7 @@
 """Render the README screenshots of the card with demo data (run by the screenshots workflow)."""
 
 import asyncio
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -11,6 +12,10 @@ ROOT = Path(__file__).resolve().parents[2]
 CARD = (ROOT / "custom_components/powerbill_forecast/frontend/powerbill-forecast-card.js").read_text()
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from demo_data import DEMO  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("report", ROOT / "custom_components/powerbill_forecast/report.py")
+report = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(report)
 
 OUT = ROOT / "docs/images"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -53,6 +58,11 @@ async def main() -> None:
             await page.wait_for_timeout(2500)
             await page.locator("#wrap").screenshot(path=str(OUT / name))
             print("rendered", name)
+        mail = report.build_report(DEMO["cards"]["top_tier"], "previous")["html"]
+        page = await browser.new_page(viewport={"width": 680, "height": 900}, device_scale_factor=2)
+        await page.set_content(mail)
+        await page.screenshot(path=str(OUT / "report.png"), full_page=True)
+        print("rendered report.png")
         await browser.close()
 
 

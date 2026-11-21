@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0b2 - 2026-11-21
+
+- **Ft from the official PEA website**: new Ft source "Official PEA website" (default in Thailand), fetched twice a day, last value kept when the page is down, event `powerbill_forecast_ft_changed`
+- New sensor **Ft surcharge** with period, source and last download
+- **Monthly bill report**: the finished cycle is frozen as the bill, event `powerbill_forecast_cycle_closed`, action `powerbill_forecast.build_report` (subject, HTML, text) and blueprint to send it
+- Card shows the Ft period
+- Setups from 0.1.0b1 keep their Ft entity or fixed value - switch to the PEA website under Configure
+
 ## 0.1.0b1 - 2026-11-21
 
 First beta.

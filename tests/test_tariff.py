@@ -91,6 +91,20 @@ def test_forecast():
     assert tariff.days_until(None, 5) is None
 
 
+def test_parse_pea_ft():
+    page = (
+        '<div class="field"><h3 class="text-center mb-5">Current Ft (Sep - Dec 2026)<br>'
+        '<span class="text-primary">0.1623</span> THB/Unit</h3></div>'
+    )
+    assert tariff.parse_pea_ft(page) == (0.1623, "Sep - Dec 2026")
+    assert tariff.parse_pea_ft("<h3>Current Ft (Jan - Apr 2027)<br><span>-0.0521</span> THB/Unit</h3>") == (
+        -0.0521,
+        "Jan - Apr 2027",
+    )
+    assert tariff.parse_pea_ft("<p>maintenance</p>") is None
+    assert tariff.parse_pea_ft("<h3>Current Ft (Sep - Dec 2026)<br><span>99</span> THB/Unit</h3>") is None
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

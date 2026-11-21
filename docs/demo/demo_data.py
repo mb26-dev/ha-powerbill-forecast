@@ -58,6 +58,27 @@ def card_data(preset_key: str, kwh: float) -> dict:
     }
 
 
+def closed_cycle() -> dict:
+    """The finished cycle before the demo cycle, for the bill report screenshot."""
+    preset = tariff.PRESETS["pea_1_2"]
+    start = datetime(2026, 9, 24, tzinfo=BKK)
+    rnd = random.Random(5)
+    daily = [{"date": (start + timedelta(days=i)).date().isoformat(), "kwh": round(rnd.uniform(9, 17), 2)} for i in range(30)]
+    kwh = round(sum(d["kwh"] for d in daily), 3)
+    return {
+        "cycle_start": start.isoformat(),
+        "cycle_end": datetime(2026, 10, 24, tzinfo=BKK).isoformat(),
+        "kwh": kwh,
+        "ft": FT,
+        "ft_period": "Sep - Dec 2026",
+        "tariff": preset.name,
+        "bill": tariff.compute_bill(kwh, preset.tiers, FT, preset.service_fee, preset.vat),
+        "daily": daily,
+        "before_kwh": 402.1,
+        "before_total": 1789.4,
+    }
+
+
 DEMO = {
     "now": NOW.isoformat(),
     "cards": {
@@ -66,3 +87,8 @@ DEMO = {
         "small_tariff": card_data("pea_1_1", 118.0),
     },
 }
+DEMO["cards"]["top_tier"]["name"] = "Powerbill Forecast"
+DEMO["cards"]["top_tier"]["ft_period"] = "Sep - Dec 2026"
+DEMO["cards"]["top_tier"]["previous"] = closed_cycle()
+DEMO["cards"]["top_tier"]["previous_kwh"] = DEMO["cards"]["top_tier"]["previous"]["kwh"]
+DEMO["cards"]["top_tier"]["previous_total"] = DEMO["cards"]["top_tier"]["previous"]["bill"]["total"]
