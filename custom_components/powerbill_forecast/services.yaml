@@ -1,0 +1,15 @@
+build_report:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: powerbill_forecast
+    cycle:
+      required: false
+      default: previous
+      selector:
+        select:
+          options:
+            - previous
+            - current

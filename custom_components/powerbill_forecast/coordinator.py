@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import (
@@ -20,8 +20,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CLOSE_DELAY_HOURS,
     CONF_CURRENCY,
     CONF_FT_ENTITY,
+    CONF_FT_SOURCE,
     CONF_FT_VALUE,
     CONF_METER_TYPE,
     CONF_RESET_DAY,
@@ -33,6 +35,10 @@ from .const import (
     DEFAULT_RESET_DAY,
     DEFAULT_TARIFF,
     DOMAIN,
+    EVENT_CYCLE_CLOSED,
+    FT_SOURCE_ENTITY,
+    FT_SOURCE_FIXED,
+    FT_SOURCE_PEA,
     METER_CYCLE,
     METER_LIFETIME,
     RECENT_DAYS,
@@ -50,6 +56,9 @@ from .tariff import (
     previous_cycle,
 )
 
+if TYPE_CHECKING:
+    from .ft import PeaFtProvider
+
 _LOGGER = logging.getLogger(__name__)
 
 _UNIT_FACTOR = {"wh": 0.001, "kwh": 1.0, "mwh": 1000.0}
@@ -65,7 +74,7 @@ def _num(value: Any) -> float | None:
 class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Recalculate on every meter change (debounced) and every few minutes."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, ft_provider: PeaFtProvider | None) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -75,6 +84,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         # the options form stores the complete set, so cleared fields really disappear
         opts = dict(entry.options) if entry.options else dict(entry.data)
+        self.title = entry.title
         self.source: str = opts[CONF_SOURCE]
         self.meter_type: str = opts.get(CONF_METER_TYPE, METER_CYCLE)
         self.reset_day: int = int(opts.get(CONF_RESET_DAY, DEFAULT_RESET_DAY))
@@ -92,21 +102,29 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.symbol = CURRENCY_SYMBOLS.get(self.currency, self.currency)
         self.ft_entity: str | None = opts.get(CONF_FT_ENTITY) or None
         self.ft_value = _num(opts.get(CONF_FT_VALUE)) or 0.0
+        # configurations from 0.1.0b1 have no source yet: an entity wins, else the fixed value
+        self.ft_source: str = opts.get(CONF_FT_SOURCE) or (FT_SOURCE_ENTITY if self.ft_entity else FT_SOURCE_FIXED)
+        self.ft_provider = ft_provider if self.ft_source == FT_SOURCE_PEA else None
 
         self._store: Store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}")
         self._saved: dict[str, Any] = {}
         self._prev_cache: tuple[str, float | None] | None = None
 
     async def async_setup(self) -> None:
-        """Load the saved baseline and follow the meter and the Ft entity."""
+        """Load the saved state and follow the meter, the Ft entity and the PEA Ft."""
         self._saved = await self._store.async_load() or {}
-        watched = [self.source] + ([self.ft_entity] if self.ft_entity else [])
+        watched = [self.source] + ([self.ft_entity] if self.ft_source == FT_SOURCE_ENTITY and self.ft_entity else [])
 
         @callback
-        def _changed(_event: Event[EventStateChangedData]) -> None:
+        def _changed(_event: Event[EventStateChangedData] | None = None) -> None:
             self.hass.async_create_task(self.async_request_refresh())
 
         self.config_entry.async_on_unload(async_track_state_change_event(self.hass, watched, _changed))
+        if self.ft_provider:
+            self.config_entry.async_on_unload(self.ft_provider.async_add_listener(_changed))
+
+    async def _save(self) -> None:
+        await self._store.async_save(self._saved)
 
     # ------------------------------------------------------------------ helpers
 
@@ -125,13 +143,19 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         unit = str(state.attributes.get("unit_of_measurement", "kWh")).lower() if state else "kwh"
         return _UNIT_FACTOR.get(unit, 1.0)
 
-    def _ft(self) -> float:
-        if self.ft_entity:
+    def _ft(self) -> dict[str, Any]:
+        """Current Ft per kWh with where it came from."""
+        if self.ft_source == FT_SOURCE_PEA and self.ft_provider and self.ft_provider.value is not None:
+            return {**self.ft_provider.as_dict(), "source": "pea"}
+        if self.ft_source == FT_SOURCE_ENTITY and self.ft_entity:
             state = self.hass.states.get(self.ft_entity)
             value = _num(state.state) if state else None
             if value is not None:
-                return value
-        return self.ft_value
+                return {"value": value, "period": None, "source": "entity", "entity": self.ft_entity}
+        info: dict[str, Any] = {"value": self.ft_value, "period": None, "source": "fixed"}
+        if self.ft_source != FT_SOURCE_FIXED:
+            info["error"] = "configured Ft source has no value yet - using the fixed value"
+        return info
 
     async def _change(self, start: datetime, end: datetime) -> float | None:
         """Energy used between start and end according to the long-term statistics."""
@@ -146,7 +170,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return None if value is None else value * self._unit_factor()
 
     async def _daily(self, start: datetime, end: datetime) -> list[dict[str, Any]]:
-        """Daily consumption inside the cycle from the long-term statistics."""
+        """Daily consumption inside a cycle from the long-term statistics."""
         try:
             result = await get_instance(self.hass).async_add_executor_job(
                 statistics_during_period, self.hass, start, end, {self.source}, "day", None, {"change"}
@@ -193,16 +217,60 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # or Home Assistant was down at the cycle change); without statistics start at zero
             used = await self._change(start, now)
             baseline = meter - max(0.0, used) if used is not None else meter
-            self._saved = {"cycle_start": key, "baseline": baseline}
-            await self._store.async_save(self._saved)
+            self._saved.update({"cycle_start": key, "baseline": baseline, "last_kwh": 0.0})
+            await self._save()
         if meter < baseline:  # the meter itself was reset or replaced
             last = _num(self._saved.get("last_kwh")) or 0.0
             baseline = meter - last
             self._saved["baseline"] = baseline
-            await self._store.async_save(self._saved)
+            await self._save()
         kwh = max(0.0, meter - baseline)
         self._saved["last_kwh"] = kwh
         return kwh
+
+    async def _closed_cycle(self, start: datetime, now: datetime, ft: dict[str, Any]) -> dict[str, Any] | None:
+        """Freeze the finished cycle once (the 'paper bill'), then announce it."""
+        prev_start, prev_end = previous_cycle(start, self.reset_day)
+        key = prev_start.isoformat()
+        closed = self._saved.get("closed")
+        if closed and closed.get("cycle_start") == key:
+            return closed
+        if now < start + timedelta(hours=CLOSE_DELAY_HOURS):
+            return closed
+        kwh = await self._previous_kwh(start)
+        if kwh is None:
+            return closed
+        snapshot = {
+            "cycle_start": key,
+            "cycle_end": prev_end.isoformat(),
+            "kwh": round(kwh, 3),
+            "ft": ft.get("value") or 0.0,
+            "ft_period": ft.get("period"),
+            "tariff": self.tariff_name,
+            "bill": compute_bill(kwh, self.tiers, ft.get("value") or 0.0, self.service_fee, self.vat),
+            "daily": await self._daily(prev_start, prev_end),
+            "closed_at": now.isoformat(),
+            "before_kwh": closed.get("kwh") if closed else None,
+            "before_total": closed["bill"]["total"] if closed else None,
+        }
+        first_run = "closed" not in self._saved
+        self._saved["closed"] = snapshot
+        await self._save()
+        if not first_run:  # no report for a cycle that ended before the integration was set up
+            self.hass.bus.async_fire(
+                EVENT_CYCLE_CLOSED,
+                {
+                    "entry_id": self.config_entry.entry_id,
+                    "name": self.title,
+                    "cycle_start": snapshot["cycle_start"],
+                    "cycle_end": snapshot["cycle_end"],
+                    "kwh": snapshot["kwh"],
+                    "total": snapshot["bill"]["total"],
+                    "currency": self.currency,
+                },
+            )
+            _LOGGER.info("Billing cycle %s closed: %s kWh, %s %s", key, snapshot["kwh"], snapshot["bill"]["total"], self.currency)
+        return snapshot
 
     # ------------------------------------------------------------------ update
 
@@ -216,7 +284,8 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         now = dt_util.now()
         start, end = cycle_bounds(now, self.reset_day)
         kwh = await self._cycle_kwh(meter, start, now)
-        ft = self._ft()
+        ft_info = self._ft()
+        ft = ft_info["value"] or 0.0
 
         daily = await self._daily(start, end)
         today = now.date().isoformat()
@@ -228,22 +297,40 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         recent = full_days[-RECENT_DAYS:]
         recent_daily = sum(d["kwh"] for d in recent) / len(recent) if len(recent) >= 2 else None
 
-        prev_kwh = await self._previous_kwh(start)
+        closed = await self._closed_cycle(start, now, ft_info)
         prev_start, prev_end = previous_cycle(start, self.reset_day)
+        if closed and closed.get("cycle_start") == prev_start.isoformat():
+            previous = closed
+        else:
+            prev_kwh = await self._previous_kwh(start)
+            previous = None
+            if prev_kwh:
+                previous = {
+                    "cycle_start": prev_start.isoformat(),
+                    "cycle_end": prev_end.isoformat(),
+                    "kwh": round(prev_kwh, 3),
+                    "ft": ft,
+                    "ft_period": ft_info.get("period"),
+                    "tariff": self.tariff_name,
+                    "bill": compute_bill(prev_kwh, self.tiers, ft, self.service_fee, self.vat),
+                    "daily": [],
+                }
         prev_days = (prev_end - prev_start).total_seconds() / 86400
-        fallback = prev_kwh / prev_days if prev_kwh and prev_days > 0 else None
+        fallback = previous["kwh"] / prev_days if previous and prev_days > 0 else None
 
         bill = compute_bill(kwh, self.tiers, ft, self.service_fee, self.vat)
         fc = forecast_kwh(kwh, start, end, now, recent_daily, fallback)
         fbill = compute_bill(fc["kwh"], self.tiers, ft, self.service_fee, self.vat)
-        prev_bill = compute_bill(prev_kwh, self.tiers, ft, self.service_fee, self.vat) if prev_kwh else None
 
         return {
+            "name": self.title,
             "tariff": self.tariff_name,
             "tariff_key": self.tariff_key,
             "currency": self.currency,
             "symbol": self.symbol,
             "ft": ft,
+            "ft_period": ft_info.get("period"),
+            "ft_info": ft_info,
             "service_fee": self.service_fee,
             "vat": self.vat,
             "tiers": [
@@ -256,8 +343,9 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "bill": bill,
             "forecast": fc,
             "forecast_bill": fbill,
-            "previous_kwh": None if prev_kwh is None else round(prev_kwh, 3),
-            "previous_total": None if prev_bill is None else prev_bill["total"],
+            "previous_kwh": previous["kwh"] if previous else None,
+            "previous_total": previous["bill"]["total"] if previous else None,
+            "previous": previous,
             "days_to_next_tier": days_until(bill["kwh_to_next_tier"], fc["daily_rate"]),
             "recent_daily": None if recent_daily is None else round(recent_daily, 3),
             "daily": daily,
