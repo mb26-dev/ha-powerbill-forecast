@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import calendar
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from html import unescape as html_unescape
 
 INF = float("inf")
 
@@ -216,3 +218,25 @@ def days_until(kwh_needed: float | None, daily_rate: float) -> float | None:
     if kwh_needed is None or daily_rate <= 0:
         return None
     return round(kwh_needed / daily_rate, 2)
+
+
+PEA_FT_URL = "https://www.pea.co.th/en/our-services/tariff/ft"
+
+_TAG = re.compile(r"<[^>]+>")
+_FT = re.compile(r"Current\s+Ft\s*\(([^)]{3,40})\)\s*(-?\d+(?:\.\d+)?)\s*(THB|Baht|บาท)", re.IGNORECASE)
+
+
+def parse_pea_ft(html: str) -> tuple[float, str] | None:
+    """Read the current Ft (THB per kWh) and its period from the official PEA Ft page.
+
+    The page shows e.g. 'Current Ft (Sep - Dec 2026)<br><span>0.1623</span> THB/Unit'.
+    Returns (value, period) or None when the layout is not recognised.
+    """
+    text = " ".join(html_unescape(_TAG.sub(" ", html)).split())
+    match = _FT.search(text)
+    if not match:
+        return None
+    value = float(match.group(2))
+    if not -5 < value < 5:  # a Ft of +-5 THB/kWh would be absurd - the layout changed
+        return None
+    return value, " ".join(match.group(1).split())
