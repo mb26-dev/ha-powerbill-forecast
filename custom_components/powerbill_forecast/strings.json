@@ -14,6 +14,7 @@
           "service_fee": "Monthly service fee",
           "vat": "VAT",
           "currency": "Currency (ISO code)",
+          "ft_source": "Fuel adjustment (Ft) source",
           "ft_entity": "Fuel adjustment (Ft) from entity",
           "ft_value": "Fuel adjustment (Ft) per kWh"
         },
@@ -24,14 +25,16 @@
           "service_fee": "Leave empty to use the value of the tariff.",
           "vat": "Leave empty to use the value of the tariff.",
           "currency": "Leave empty to use the tariff or Home Assistant currency.",
-          "ft_entity": "Optional. A sensor with the current surcharge per kWh, e.g. a scraped Ft value. Wins over the fixed value.",
-          "ft_value": "Surcharge added to every kWh (Thailand: Ft). Can be negative."
+          "ft_entity": "Only for the source 'Entity'.",
+          "ft_value": "Only for the source 'Fixed value'. Also used as fallback until the first Ft download. Can be negative.",
+          "ft_source": "Official PEA website: fetched twice a day, the same Ft applies to PEA and MEA. Entity: any sensor with the Ft per kWh. Fixed: the value below (0 if your utility has no surcharge)."
         }
       }
     },
     "error": {
       "tiers_required": "Please enter the tiers of your custom tariff.",
-      "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217"
+      "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217",
+      "ft_entity_required": "Please choose the sensor that provides the Ft."
     },
     "abort": {
       "already_configured": "This energy meter already has a forecast."
@@ -50,6 +53,7 @@
           "service_fee": "Monthly service fee",
           "vat": "VAT",
           "currency": "Currency (ISO code)",
+          "ft_source": "Fuel adjustment (Ft) source",
           "ft_entity": "Fuel adjustment (Ft) from entity",
           "ft_value": "Fuel adjustment (Ft) per kWh"
         },
@@ -57,13 +61,16 @@
           "tiers": "Only for 'Custom tariff'. Format: 150=3.2484, 400=4.2218, *=4.4217",
           "service_fee": "Leave empty to use the value of the tariff.",
           "vat": "Leave empty to use the value of the tariff.",
-          "ft_entity": "Optional. Wins over the fixed value."
+          "ft_entity": "Only for the source 'Entity'.",
+          "ft_source": "Official PEA website: fetched twice a day, the same Ft applies to PEA and MEA. Entity: any sensor with the Ft per kWh. Fixed: the value below (0 if your utility has no surcharge).",
+          "ft_value": "Only for the source 'Fixed value'. Also used as fallback until the first Ft download. Can be negative."
         }
       }
     },
     "error": {
       "tiers_required": "Please enter the tiers of your custom tariff.",
-      "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217"
+      "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217",
+      "ft_entity_required": "Please choose the sensor that provides the Ft."
     }
   },
   "selector": {
@@ -71,6 +78,29 @@
       "options": {
         "cycle": "Resets every billing cycle (utility meter)",
         "lifetime": "Counts up forever (total meter)"
+      }
+    },
+    "ft_source": {
+      "options": {
+        "pea": "Official PEA website (Thailand, automatic)",
+        "entity": "Entity",
+        "fixed": "Fixed value"
+      }
+    }
+  },
+  "services": {
+    "build_report": {
+      "name": "Build bill report",
+      "description": "Returns subject, HTML and text of the bill report in the Powerbill design - send it with any notify or e-mail action.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Powerbill Forecast",
+          "description": "Which forecast. Optional if you have only one."
+        },
+        "cycle": {
+          "name": "Cycle",
+          "description": "previous = the finished billing cycle (the bill), current = the running cycle with forecast."
+        }
       }
     }
   }

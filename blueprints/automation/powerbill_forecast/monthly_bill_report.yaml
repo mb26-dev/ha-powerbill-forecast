@@ -1,0 +1,62 @@
+blueprint:
+  name: Powerbill Forecast - monthly bill report
+  description: >
+    Sends the bill report in the Powerbill Forecast design when a billing cycle has finished
+    (the day of the meter reading). Use the variables `report_subject`, `report_html` and
+    `report_text` in your own send actions, e.g. an SMTP e-mail with `html: "{{ report_html }}"`
+    or a phone notification with `message: "{{ report_text }}"`.
+  domain: automation
+  source_url: https://github.com/mb26-dev/ha-powerbill-forecast/blob/main/blueprints/automation/powerbill_forecast/monthly_bill_report.yaml
+  input:
+    forecast:
+      name: Powerbill Forecast
+      description: The forecast whose bill should be sent.
+      selector:
+        config_entry:
+          integration: powerbill_forecast
+    send_time:
+      name: Send at
+      description: The cycle closes shortly after midnight of the meter reading day; the report waits until this time.
+      default: "08:00:00"
+      selector:
+        time: {}
+    send_actions:
+      name: Send the report
+      description: >
+        What to do with the report. Variables: report_subject, report_html, report_text,
+        report_total, report_kwh.
+      default: []
+      selector:
+        action: {}
+
+mode: single
+
+triggers:
+  - trigger: event
+    event_type: powerbill_forecast_cycle_closed
+    event_data:
+      entry_id: !input forecast
+
+actions:
+  - variables:
+      send_time: !input send_time
+  - if:
+      - condition: template
+        value_template: "{{ now().strftime('%H:%M:%S') < send_time }}"
+    then:
+      - wait_for_trigger:
+          - trigger: time
+            at: !input send_time
+        timeout: "24:00:00"
+  - action: powerbill_forecast.build_report
+    data:
+      config_entry_id: !input forecast
+      cycle: previous
+    response_variable: report
+  - variables:
+      report_subject: "{{ report.subject }}"
+      report_html: "{{ report.html }}"
+      report_text: "{{ report.text }}"
+      report_total: "{{ report.total }}"
+      report_kwh: "{{ report.kwh }}"
+  - sequence: !input send_actions

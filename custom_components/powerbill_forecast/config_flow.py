@@ -13,6 +13,7 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_CURRENCY,
     CONF_FT_ENTITY,
+    CONF_FT_SOURCE,
     CONF_FT_VALUE,
     CONF_METER_TYPE,
     CONF_RESET_DAY,
@@ -25,12 +26,24 @@ from .const import (
     DEFAULT_RESET_DAY,
     DEFAULT_TARIFF,
     DOMAIN,
+    FT_SOURCE_ENTITY,
+    FT_SOURCE_FIXED,
+    FT_SOURCE_PEA,
     METER_CYCLE,
     METER_LIFETIME,
 )
 from .tariff import PRESETS, format_tiers, parse_tiers
 
 CONF_NAME = "name"
+
+
+def _default_ft_source(hass, values: dict[str, Any]) -> str:
+    """Thailand: the official PEA value. Elsewhere a fixed value (usually 0). Old setups keep their entity."""
+    if values.get(CONF_FT_ENTITY):
+        return FT_SOURCE_ENTITY
+    if values.get(CONF_SOURCE) and CONF_FT_SOURCE not in values:  # configured with 0.1.0b1
+        return FT_SOURCE_FIXED if values.get(CONF_FT_VALUE) else FT_SOURCE_PEA
+    return FT_SOURCE_PEA if (hass.config.country or "TH") == "TH" else FT_SOURCE_FIXED
 
 
 def _schema(hass, values: dict[str, Any], with_name: bool) -> vol.Schema:
@@ -72,6 +85,13 @@ def _schema(hass, values: dict[str, Any], with_name: bool) -> vol.Schema:
                 selector.NumberSelectorConfig(min=0, max=100, step="any", unit_of_measurement="%", mode=selector.NumberSelectorMode.BOX)
             ),
             vol.Optional(CONF_CURRENCY, description=sv(CONF_CURRENCY)): selector.TextSelector(),
+            vol.Required(CONF_FT_SOURCE, default=values.get(CONF_FT_SOURCE, _default_ft_source(hass, values))): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[FT_SOURCE_PEA, FT_SOURCE_ENTITY, FT_SOURCE_FIXED],
+                    translation_key="ft_source",
+                    mode=selector.SelectSelectorMode.LIST,
+                )
+            ),
             vol.Optional(CONF_FT_ENTITY, description=sv(CONF_FT_ENTITY)): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["sensor", "input_number", "number"])
             ),
@@ -98,6 +118,10 @@ def _validate(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str
                 errors[CONF_TIERS] = "invalid_tiers"
     else:
         data.pop(CONF_TIERS, None)
+    if data.get(CONF_FT_SOURCE) == FT_SOURCE_ENTITY and not data.get(CONF_FT_ENTITY):
+        errors[CONF_FT_ENTITY] = "ft_entity_required"
+    if data.get(CONF_FT_SOURCE) != FT_SOURCE_ENTITY:
+        data.pop(CONF_FT_ENTITY, None)
     if CONF_CURRENCY in data:
         data[CONF_CURRENCY] = str(data[CONF_CURRENCY]).strip().upper()
     return data, errors
