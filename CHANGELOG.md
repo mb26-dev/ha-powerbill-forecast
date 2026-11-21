@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0b3 - 2026-11-21
+
+- Daily energy of a cycle no longer includes the meter reading day of the next cycle (the recorder returned one day too many - extra bar in card and bill report)
+
 ## 0.1.0b2 - 2026-11-21
 
 - **Ft from the official PEA website**: new Ft source "Official PEA website" (default in Thailand), fetched twice a day, last value kept when the page is down, event `powerbill_forecast_ft_changed`

@@ -179,15 +179,19 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("No daily statistics for %s: %s", self.source, err)
             return []
         factor = self._unit_factor()
+        first, last = dt_util.as_local(start).date(), dt_util.as_local(end).date()
         days = []
         for row in result.get(self.source, []):
             ts = row.get("start")
             when = dt_util.utc_from_timestamp(ts) if isinstance(ts, (int, float)) else ts
             if when is None:
                 continue
+            day = dt_util.as_local(when).date()
+            if not first <= day < last:  # the recorder also returns the day that starts at `end`
+                continue
             days.append(
                 {
-                    "date": dt_util.as_local(when).date().isoformat(),
+                    "date": day.isoformat(),
                     "kwh": round(max(0.0, (_num(row.get("change")) or 0.0) * factor), 3),
                 }
             )

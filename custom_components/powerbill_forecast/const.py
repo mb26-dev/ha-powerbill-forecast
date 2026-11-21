@@ -1,7 +1,7 @@
 """Constants for Powerbill Forecast."""
 
 DOMAIN = "powerbill_forecast"
-VERSION = "0.1.0b2"
+VERSION = "0.1.0b3"
 
 CARD_FILE = "powerbill-forecast-card.js"
 URL_FRONTEND = "/powerbill_forecast_static"
