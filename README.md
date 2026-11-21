@@ -40,6 +40,8 @@ The Home Assistant energy dashboard only knows a single price, so the cost it sh
 - 🔮 **Month-end forecast** of energy, tier and bill
 - 🪜 **Tier tracking**: current tier, kWh left before the next, more expensive tier and the days until you get there
 - 🏷️ **Price of the next kWh** including surcharge and VAT - the number that matters when you switch on the air conditioning
+- ⛽ **Ft surcharge fetched automatically** from the official PEA website - the bill stays right when the Ft changes
+- 📧 **Monthly bill report** in the same design, ready to compare with the paper bill
 - 📉 **Comparison with the last cycle**
 
 ## ✨ Highlights
@@ -55,6 +57,16 @@ One bar per day of the cycle, coloured by the tier the cumulative consumption re
 
 ### 🧾 Bill details
 Tier by tier, surcharge, service fee and VAT - now and at the end of the cycle, side by side.
+
+### ⛽ Ft straight from PEA
+Thailand's fuel adjustment charge (Ft) changes every four months (January, May, September). Powerbill Forecast reads the current value from the [official PEA Ft page](https://www.pea.co.th/en/our-services/tariff/ft) twice a day - the same Ft applies to PEA and MEA. When it changes, the bill and the forecast follow immediately and the event `powerbill_forecast_ft_changed` fires. If the page cannot be reached, the last known value stays in use.
+
+### 📧 Monthly bill report
+When the meter is read, the finished cycle is frozen as **your bill**: tiers, Ft, service fee and VAT - exactly the lines of the paper bill. The included blueprint sends it as an e-mail in the card design:
+
+<p align="center">
+  <img src="docs/images/report.png" alt="Monthly bill report e-mail" width="560">
+</p>
 
 ### 🌏 Any tiered tariff
 Presets for **PEA** and **MEA** (Thailand) are built in. For any other utility, enter your own tiers in one line.
@@ -85,7 +97,8 @@ The dashboard card is registered automatically - no resource to add.
 | **Tariff** | A preset or `Custom tariff`. |
 | **Custom tiers** | `150=3.2484, 400=4.2218, *=4.4217` - upper kWh of the tier = price, `*` = everything above. A flat price is just `0.31`. |
 | **Monthly service fee / VAT / Currency** | Leave empty to use the values of the preset. |
-| **Fuel adjustment (Ft)** | A fixed surcharge per kWh, or a sensor that provides it (wins over the fixed value). |
+| **Fuel adjustment (Ft) source** | `Official PEA website` (Thailand, automatic), `Entity` (any sensor) or `Fixed value` (0 if your utility has no surcharge). |
+| **Ft entity / fixed value** | Only for the matching source. The fixed value is also the fallback until the first download. |
 
 Everything can be changed later under **Configure**.
 
@@ -96,7 +109,7 @@ Everything can be changed later under **Configure**.
 | PEA / MEA 1.1.1 (up to 150 kWh/month) | 0-15: 2.3488 · 16-25: 2.9882 · 26-35: 3.2405 · 36-100: 3.6237 · 101-150: 3.7171 · 151-400: 4.2218 · 401+: 4.4217 | 8.19 |
 | PEA / MEA 1.1.2 (over 150 kWh/month) | 0-150: 3.2484 · 151-400: 4.2218 · 401+: 4.4217 | 24.62 |
 
-VAT 7 % is applied to energy, Ft and service fee. The Ft changes every few months - point **Fuel adjustment (Ft) from entity** to a sensor that scrapes the current value from the PEA website, or update the fixed value when it changes.
+VAT 7 % is applied to energy, Ft and service fee. Choose **Official PEA website** as Ft source and the Ft is always current.
 
 ---
 
@@ -114,6 +127,7 @@ VAT 7 % is applied to energy, Ft and service fee. The Ft changes every few month
 | `sensor.powerbill_forecast_price_of_next_kwh` | Rate + Ft + VAT of the next kWh |
 | `sensor.powerbill_forecast_average_price` | Total bill / kWh |
 | `sensor.powerbill_forecast_days_left_in_cycle` | Days until the meter reading |
+| `sensor.powerbill_forecast_ft_surcharge` | Ft in use, with `period`, `source` and the last download |
 
 The entity IDs follow the name you give the integration.
 
@@ -136,6 +150,42 @@ entity: sensor.powerbill_forecast_forecast_bill
 | `animate` | `true` | Count-up animation of the amounts |
 
 The card works on phones and wall tablets and respects *reduce motion*.
+
+---
+
+## 📧 Bill report
+
+### Blueprint
+[![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fmb26-dev%2Fha-powerbill-forecast%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fpowerbill_forecast%2Fmonthly_bill_report.yaml)
+
+The automation waits for the meter reading, builds the report and runs your send actions with the variables `report_subject`, `report_html`, `report_text`, `report_total` and `report_kwh`. Example for an SMTP e-mail:
+
+```yaml
+action: notify.send_message
+target:
+  entity_id: notify.my_mailbox
+data:
+  title: "{{ report_subject }}"
+  message: "{{ report_text }}"
+```
+
+For HTML mail use the action of your mail integration with `html: "{{ report_html }}"`.
+
+### Action `powerbill_forecast.build_report`
+Returns `subject`, `html`, `text`, `total` and `kwh`. `cycle: previous` is the finished bill, `cycle: current` the running cycle with forecast - handy to try the design right away:
+
+```yaml
+action: powerbill_forecast.build_report
+data:
+  cycle: current
+response_variable: report
+```
+
+### Events
+| Event | When |
+|---|---|
+| `powerbill_forecast_cycle_closed` | A billing cycle has finished (about 2 hours after the meter reading day starts) |
+| `powerbill_forecast_ft_changed` | PEA published a new Ft (`old`, `new`, `period`) |
 
 ---
 
@@ -163,6 +213,7 @@ actions:
 - The forecast is an estimate. The utility's own reading and rounding decide the final bill.
 - Thai tariff 1.1.1 applies only while you stay at or below 150 kWh per month; pick the preset that is printed on your bill.
 - Energy in Wh or MWh is converted to kWh automatically.
+- The first finished cycle after the installation is stored quietly; reports start with the next meter reading.
 
 ## 🙏 Support
 

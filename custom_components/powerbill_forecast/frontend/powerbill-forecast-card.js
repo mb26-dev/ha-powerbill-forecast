@@ -1,5 +1,5 @@
 /* Powerbill Forecast card - animated tier staircase, live bill and month-end forecast. */
-const PBF_VERSION = "0.1.0b1";
+const PBF_VERSION = "0.1.0b2";
 
 const PALETTE = ["#22d3ee", "#2dd4bf", "#4ade80", "#facc15", "#fb923c", "#f97316", "#ef4444"];
 
@@ -145,7 +145,7 @@ class PowerbillForecastCard extends HTMLElement {
             <span class="chip">Next kWh <b style="color:${curColor}">${this._money(b.marginal_price, 2)}</b></span>
             ${nextChip}
             <span class="chip">Ø <b>${this._money(b.average_price, 2)}</b>/kWh</span>
-            ${d.ft ? `<span class="chip">Ft <b>${this._num(d.ft, 4)}</b></span>` : ""}
+            ${d.ft ? `<span class="chip" title="${esc(d.ft_info && d.ft_info.source === "pea" ? "Official PEA website" : "")}">Ft <b>${this._num(d.ft, 4)}</b>${d.ft_period ? ` · ${esc(d.ft_period)}` : ""}</span>` : ""}
           </div>`
             : ""
         }
