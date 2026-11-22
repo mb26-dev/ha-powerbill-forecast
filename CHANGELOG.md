@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0 - 2026-11-22
+
+First stable release.
+
+- Tiered electricity bills for Thailand (PEA / MEA 1.1.1 and 1.1.2) and fully custom tiered tariffs, with service fee and VAT
+- Ft surcharge fetched automatically from the official PEA website (twice a day, last value kept when the page is down)
+- Billing cycle on any day of the month, utility meters and lifetime meters
+- Month-end forecast from the cycle average, the last 7 days and the previous cycle
+- 11 sensors: forecast bill, current bill, previous cycle bill, Ft surcharge, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
+- Finished cycle frozen as the bill, action `powerbill_forecast.build_report` and a blueprint that emails the monthly bill report
+- `custom:powerbill-forecast-card` with animated tier staircase, daily energy bars and bill details
+
 ## 0.1.0b3 - 2026-11-21
 
 - Daily energy of a cycle no longer includes the meter reading day of the next cycle (the recorder returned one day too many - extra bar in card and bill report)

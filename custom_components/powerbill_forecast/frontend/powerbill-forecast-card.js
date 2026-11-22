@@ -1,5 +1,5 @@
 /* Powerbill Forecast card - animated tier staircase, live bill and month-end forecast. */
-const PBF_VERSION = "0.1.0b2";
+const PBF_VERSION = "0.1.0";
 
 const PALETTE = ["#22d3ee", "#2dd4bf", "#4ade80", "#facc15", "#fb923c", "#f97316", "#ef4444"];
 
