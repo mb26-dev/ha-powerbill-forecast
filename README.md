@@ -11,8 +11,9 @@
 
 <p align="center">
   <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white" alt="HACS"></a>
-  <img src="https://img.shields.io/github/v/release/mb26-dev/ha-powerbill-forecast?include_prereleases&label=release" alt="Release">
+  <a href="https://github.com/mb26-dev/ha-powerbill-forecast/releases"><img src="https://img.shields.io/github/v/release/mb26-dev/ha-powerbill-forecast?label=release" alt="Release"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-2025.1%2B-18BCF2?logo=homeassistant&logoColor=white" alt="Home Assistant">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/mb26-dev/ha-powerbill-forecast" alt="License"></a>
   <a href="https://ko-fi.com/mb26dev"><img src="https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=ko-fi&logoColor=white" alt="Ko-fi"></a>
 </p>
 
@@ -119,7 +120,7 @@ VAT 7 % is applied to energy, Ft and service fee. Choose **Official PEA website*
 |---|---|
 | `sensor.powerbill_forecast_forecast_bill` | Bill expected at the end of the cycle (the card reads this one) |
 | `sensor.powerbill_forecast_current_bill` | Bill for the energy used so far |
-| `sensor.powerbill_forecast_previous_cycle_bill` | Last cycle, calculated with today's tariff |
+| `sensor.powerbill_forecast_previous_cycle_bill` | Last finished cycle, frozen as the bill (tiers, Ft, fee, VAT) |
 | `sensor.powerbill_forecast_cycle_energy` | kWh in the running cycle |
 | `sensor.powerbill_forecast_forecast_energy` | kWh expected at the end of the cycle |
 | `sensor.powerbill_forecast_current_tier` | Current tier (1 = cheapest) |
