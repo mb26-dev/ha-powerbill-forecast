@@ -30,23 +30,22 @@ class Preset:
     currency: str
 
 
-# Thailand uses one national residential tariff for PEA and MEA (ERC, valid since 2023).
+# Thailand uses one national residential tariff for PEA and MEA.
+# Progressive rates of the ERC, valid from the September 2026 bills (first 200 kWh at 3.00 THB).
 _TH_SMALL = (
     Tier(15, 2.3488),
     Tier(25, 2.9882),
-    Tier(35, 3.2405),
-    Tier(100, 3.6237),
-    Tier(150, 3.7171),
-    Tier(400, 4.2218),
-    Tier(INF, 4.4217),
+    Tier(200, 3.0000),
+    Tier(400, 4.1584),
+    Tier(INF, 4.3583),
 )
-_TH_LARGE = (Tier(150, 3.2484), Tier(400, 4.2218), Tier(INF, 4.4217))
+_TH_LARGE = (Tier(200, 3.0000), Tier(400, 4.1584), Tier(INF, 4.3583))
 
 PRESETS: dict[str, Preset] = {
     "pea_1_1": Preset("PEA 1.1.1 Residential (up to 150 kWh/month)", _TH_SMALL, 8.19, 7.0, "THB"),
     "pea_1_2": Preset("PEA 1.1.2 Residential (over 150 kWh/month)", _TH_LARGE, 24.62, 7.0, "THB"),
-    "mea_1_1": Preset("MEA 1.1.1 Residential (up to 150 kWh/month)", _TH_SMALL, 8.19, 7.0, "THB"),
-    "mea_1_2": Preset("MEA 1.1.2 Residential (over 150 kWh/month)", _TH_LARGE, 24.62, 7.0, "THB"),
+    "mea_1_1": Preset("MEA 1.1 Residential (up to 150 kWh/month)", _TH_SMALL, 8.19, 7.0, "THB"),
+    "mea_1_2": Preset("MEA 1.2 Residential (over 150 kWh/month)", _TH_LARGE, 24.62, 7.0, "THB"),
     "custom": Preset("Custom tariff", (Tier(INF, 0.30),), 0.0, 0.0, ""),
 }
 

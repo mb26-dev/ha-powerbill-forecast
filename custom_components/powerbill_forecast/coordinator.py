@@ -109,6 +109,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._store: Store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}")
         self._saved: dict[str, Any] = {}
         self._prev_cache: tuple[str, float | None] | None = None
+        self._hist_cache: tuple[str, list[dict[str, Any]]] | None = None
 
     async def async_setup(self) -> None:
         """Load the saved state and follow the meter, the Ft entity and the PEA Ft."""
@@ -211,6 +212,19 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._prev_cache = (key, value)
         return value
 
+    async def _history(self, upto: datetime, count: int = 6) -> list[dict[str, Any]]:
+        """kWh of the finished cycles that end at `upto` and before, newest first (like the usage history on a bill)."""
+        rows: list[dict[str, Any]] = []
+        cursor = upto
+        for _ in range(count):
+            prev_start, prev_end = previous_cycle(cursor, self.reset_day)
+            kwh = await self._change(prev_start, prev_end)
+            if kwh is None or kwh <= 0:
+                break
+            rows.append({"date": dt_util.as_local(prev_end).date().isoformat(), "kwh": round(kwh, 1)})
+            cursor = prev_start
+        return rows
+
     async def _cycle_kwh(self, meter: float, start: datetime, now: datetime) -> float:
         if self.meter_type != METER_LIFETIME:
             return max(0.0, meter)
@@ -244,6 +258,12 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         kwh = await self._previous_kwh(start)
         if kwh is None:
             return closed
+        history = await self._history(start)
+        end_day = dt_util.as_local(prev_end).date().isoformat()
+        if history and history[0]["date"] == end_day:
+            history[0]["kwh"] = round(kwh, 1)
+        else:
+            history.insert(0, {"date": end_day, "kwh": round(kwh, 1)})
         snapshot = {
             "cycle_start": key,
             "cycle_end": prev_end.isoformat(),
@@ -253,6 +273,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "tariff": self.tariff_name,
             "bill": compute_bill(kwh, self.tiers, ft.get("value") or 0.0, self.service_fee, self.vat),
             "daily": await self._daily(prev_start, prev_end),
+            "history": history[:6],
             "closed_at": now.isoformat(),
             "before_kwh": closed.get("kwh") if closed else None,
             "before_total": closed["bill"]["total"] if closed else None,
@@ -326,6 +347,14 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         fc = forecast_kwh(kwh, start, end, now, recent_daily, fallback)
         fbill = compute_bill(fc["kwh"], self.tiers, ft, self.service_fee, self.vat)
 
+        hist_key = start.isoformat()
+        if not self._hist_cache or self._hist_cache[0] != hist_key:
+            self._hist_cache = (hist_key, await self._history(start, 5))
+        history = [
+            {"date": dt_util.as_local(end).date().isoformat(), "kwh": round(kwh, 1), "running": True},
+            *self._hist_cache[1],
+        ]
+
         return {
             "name": self.title,
             "tariff": self.tariff_name,
@@ -350,6 +379,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "previous_kwh": previous["kwh"] if previous else None,
             "previous_total": previous["bill"]["total"] if previous else None,
             "previous": previous,
+            "history": history,
             "days_to_next_tier": days_until(bill["kwh_to_next_tier"], fc["daily_rate"]),
             "recent_daily": None if recent_daily is None else round(recent_daily, 3),
             "daily": daily,
