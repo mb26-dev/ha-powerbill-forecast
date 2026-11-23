@@ -39,5 +39,5 @@ First beta.
 - Fuel adjustment (Ft) as a fixed value or from any sensor, service fee and VAT
 - Billing cycle on any day of the month, utility meters and lifetime meters
 - Month-end forecast that blends the cycle average with the last 7 days
-- 10 sensors: forecast bill, current bill, previous cycle bill, Ft surcharge, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
+- 10 sensors: forecast bill, current bill, previous cycle bill, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
 - `custom:powerbill-forecast-card` with animated tier staircase, daily energy bars and bill details

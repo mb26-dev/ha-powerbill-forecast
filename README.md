@@ -63,7 +63,7 @@ Tier by tier, surcharge, service fee and VAT - now and at the end of the cycle, 
 Thailand's fuel adjustment charge (Ft) changes every four months (January, May, September). Powerbill Forecast reads the current value from the [official PEA Ft page](https://www.pea.co.th/en/our-services/tariff/ft) twice a day - the same Ft applies to PEA and MEA. When it changes, the bill and the forecast follow immediately and the event `powerbill_forecast_ft_changed` fires. If the page cannot be reached, the last known value stays in use.
 
 ### 📧 Monthly bill report
-When the meter is read, the finished cycle is frozen as **your bill**: tiers, Ft, service fee and VAT - exactly the lines of the paper bill. The included blueprint sends it as an e-mail in the card design:
+When the meter is read, the finished cycle is frozen as **your bill**: tiers, Ft, service fee and VAT - exactly the lines of the paper bill. The included blueprint sends it as an e-mail laid out like a paper electricity bill (bill period, meter reading date, charges in the usual order, total amount and a six-month usage history), so you can check it line by line:
 
 <p align="center">
   <img src="docs/images/report.png" alt="Monthly bill report e-mail" width="560">
@@ -107,10 +107,10 @@ Everything can be changed later under **Configure**.
 
 | Preset | Tiers (THB/kWh) | Service fee |
 |---|---|---|
-| PEA / MEA 1.1.1 (up to 150 kWh/month) | 0-15: 2.3488 · 16-25: 2.9882 · 26-35: 3.2405 · 36-100: 3.6237 · 101-150: 3.7171 · 151-400: 4.2218 · 401+: 4.4217 | 8.19 |
-| PEA / MEA 1.1.2 (over 150 kWh/month) | 0-150: 3.2484 · 151-400: 4.2218 · 401+: 4.4217 | 24.62 |
+| PEA 1.1.1 / MEA 1.1 (up to 150 kWh/month) | 1-15: 2.3488 · 16-25: 2.9882 · 26-200: 3.0000 · 201-400: 4.1584 · 401+: 4.3583 | 8.19 |
+| PEA 1.1.2 / MEA 1.2 (over 150 kWh/month) | 1-200: 3.0000 · 201-400: 4.1584 · 401+: 4.3583 | 24.62 |
 
-VAT 7 % is applied to energy, Ft and service fee. Choose **Official PEA website** as Ft source and the Ft is always current.
+Rates valid from the September 2026 bills. VAT 7 % is applied to energy, Ft and service fee. Choose **Official PEA website** as Ft source and the Ft is always current.
 
 ---
 
