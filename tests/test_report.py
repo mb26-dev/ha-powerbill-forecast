@@ -28,6 +28,7 @@ def _data():
         "daily": [{"date": "2026-09-24", "kwh": 12.5}, {"date": "2026-09-25", "kwh": 14.1}],
         "before_kwh": 402.1,
         "before_total": 1789.4,
+        "history": [{"date": "2026-10-24", "kwh": 386.9}, {"date": "2026-09-24", "kwh": 402.1}],
     }
     return data
 
@@ -39,13 +40,20 @@ def test_previous_report():
     assert "Sep - Dec 2026" in rep["html"]
     assert "display:flex" not in rep["html"] and "var(--" not in rep["html"]
     assert f"{rep['total']:,.2f}" in rep["html"]
-    assert "Total:" in rep["text"]
+    assert "Total amount:" in rep["text"]
+    assert "ELECTRICITY BILL" in rep["html"] and "Usage history" in rep["html"] and "24 Sep 26" in rep["html"]
+    assert "BILL PERIOD" in rep["html"] and "10/2026" in rep["html"] and "24/10/2026" in rep["html"]
 
 
 def test_current_report_and_missing_previous():
     data = _data()
     rep = report.build_report(data, "current")
     assert "(so far)" in rep["subject"] and "FORECAST AT THE METER READING" in rep["html"]
+    data["history"] = [{"date": "2026-11-24", "kwh": 447.5, "running": True}, {"date": "2026-10-24", "kwh": 386.9}]
+    prev = dict(data["previous"])
+    prev.pop("history")
+    data["previous"] = prev
+    assert ">387<" in report.build_report(data, "previous")["html"].split("Usage history")[1]
     data["previous"] = None
     assert report.build_report(data, "previous") is None
 

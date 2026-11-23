@@ -18,31 +18,34 @@ def approx(a, b, tol=0.01):
     assert abs(a - b) <= tol, f"{a} != {b}"
 
 
-def test_pea_large_bill():
+def test_pea_large_bill_matches_paper_bill():
+    """PEA bill 11/2569: 473 kWh, Ft 0.1623 -> energy 1,749.84, total 1,980.82."""
     p = tariff.PRESETS["pea_1_2"]
-    bill = tariff.compute_bill(447.5331, p.tiers, ft=0.1623, service_fee=p.service_fee, vat=p.vat)
-    # 150*3.2484 + 250*4.2218 + 47.5331*4.4217
-    approx(bill["energy"], 487.26 + 1055.45 + 210.18)
-    approx(bill["ft"], 72.63)
-    approx(bill["total"], 1979.65, 0.05)
+    bill = tariff.compute_bill(473, p.tiers, ft=0.1623, service_fee=p.service_fee, vat=p.vat)
+    approx(bill["energy"], 1749.84)
+    approx(bill["ft"], 76.77)
+    approx(bill["subtotal"], 1851.23)
+    approx(bill["vat"], 129.59)
+    approx(bill["total"], 1980.82)
     assert bill["current_tier"] == 3
     assert bill["kwh_to_next_tier"] is None
-    approx(bill["marginal_price"], (4.4217 + 0.1623) * 1.07, 0.0001)
+    approx(bill["marginal_price"], (4.3583 + 0.1623) * 1.07, 0.0001)
+    # PEA bill 10/2569: 421 kWh -> 1,729.28
+    approx(tariff.compute_bill(421, p.tiers, 0.1623, p.service_fee, p.vat)["total"], 1729.28)
 
 
 def test_pea_small_bill():
     p = tariff.PRESETS["pea_1_1"]
     bill = tariff.compute_bill(120, p.tiers, ft=0.0, service_fee=p.service_fee, vat=7)
-    energy = 15 * 2.3488 + 10 * 2.9882 + 10 * 3.2405 + 65 * 3.6237 + 20 * 3.7171
-    approx(bill["energy"], energy)
-    assert bill["current_tier"] == 5
-    approx(bill["kwh_to_next_tier"], 30)
+    approx(bill["energy"], 15 * 2.3488 + 10 * 2.9882 + 95 * 3.0)
+    assert bill["current_tier"] == 3
+    approx(bill["kwh_to_next_tier"], 80)
 
 
 def test_boundary_and_zero():
     tiers = tariff.PRESETS["pea_1_2"].tiers
-    assert tariff.compute_bill(150, tiers)["current_tier"] == 1
-    assert tariff.compute_bill(150.01, tiers)["current_tier"] == 2
+    assert tariff.compute_bill(200, tiers)["current_tier"] == 1
+    assert tariff.compute_bill(200.01, tiers)["current_tier"] == 2
     zero = tariff.compute_bill(0, tiers, service_fee=24.62, vat=7)
     approx(zero["total"], 26.34)
     assert zero["average_price"] is None

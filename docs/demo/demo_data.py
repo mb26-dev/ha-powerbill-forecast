@@ -76,6 +76,14 @@ def closed_cycle() -> dict:
         "daily": daily,
         "before_kwh": 402.1,
         "before_total": 1789.4,
+        "history": [
+            {"date": "2026-10-24", "kwh": round(kwh, 1)},
+            {"date": "2026-09-24", "kwh": 402.1},
+            {"date": "2026-08-24", "kwh": 388.6},
+            {"date": "2026-07-24", "kwh": 241.3},
+            {"date": "2026-06-24", "kwh": 229.8},
+            {"date": "2026-05-24", "kwh": 436.2},
+        ],
     }
 
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-11-23
+
+- **New Thai residential tariff** (valid from the September 2026 bills) in the PEA / MEA presets: first 200 kWh at 3.0000, 201-400 at 4.1584, from 401 at 4.3583 THB/kWh. Checked against real PEA bills to the satang
+- **Bill report e-mail laid out like a paper electricity bill**: bill period, meter reading date, consumption, charges in the usual order (energy with tier lines, service charge, Ft, total, VAT), total amount to pay and a six-month usage history
+- Usage history of the last cycles from the long-term statistics
+
 ## 0.1.0 - 2026-11-22
 
 First stable release.
@@ -33,5 +39,5 @@ First beta.
 - Fuel adjustment (Ft) as a fixed value or from any sensor, service fee and VAT
 - Billing cycle on any day of the month, utility meters and lifetime meters
 - Month-end forecast that blends the cycle average with the last 7 days
-- 10 sensors: forecast bill, current bill, previous cycle bill, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
+- 10 sensors: forecast bill, current bill, previous cycle bill, Ft surcharge, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
 - `custom:powerbill-forecast-card` with animated tier staircase, daily energy bars and bill details
