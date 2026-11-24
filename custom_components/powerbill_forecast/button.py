@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -39,4 +40,7 @@ class MeterReadButton(ButtonEntity):
         )
 
     async def async_press(self) -> None:
-        await self._coordinator.async_meter_reading()
+        try:
+            await self._coordinator.async_meter_reading()
+        except ValueError as err:
+            raise HomeAssistantError(str(err)) from err

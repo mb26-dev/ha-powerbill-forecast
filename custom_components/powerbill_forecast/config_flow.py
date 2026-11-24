@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -103,6 +104,9 @@ def _schema(hass, values: dict[str, Any], with_name: bool) -> vol.Schema:
     return vol.Schema(fields)
 
 
+_CURRENCY = re.compile(r"[A-Z]{3}")  # ISO 4217 code
+
+
 def _validate(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
     errors: dict[str, str] = {}
     data = {k: v for k, v in user_input.items() if v not in (None, "")}
@@ -124,6 +128,8 @@ def _validate(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str
         data.pop(CONF_FT_ENTITY, None)
     if CONF_CURRENCY in data:
         data[CONF_CURRENCY] = str(data[CONF_CURRENCY]).strip().upper()
+        if not _CURRENCY.fullmatch(data[CONF_CURRENCY]):
+            errors[CONF_CURRENCY] = "invalid_currency"
     return data, errors
 
 

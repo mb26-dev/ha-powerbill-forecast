@@ -80,6 +80,14 @@ def test_meter_reading_report_matches_paper_bill():
     assert "23/11/2026 12:20</td>" not in rep["html"]  # the box keeps the date only, so the mail does not get wider
 
 
+def test_currency_symbol_is_escaped():
+    data = _data()
+    data["symbol"] = "<b>X"
+    rep = report.build_report(data, "previous")
+    assert "<b>X" not in rep["html"] and "&lt;b&gt;X" in rep["html"]
+    assert "<b>X" in rep["subject"]  # plain text keeps the symbol as typed
+
+
 def test_tier_colors_match_card():
     assert report.tier_color(0, 3) == "#22d3ee"
     assert report.tier_color(2, 3) == "#ef4444"
