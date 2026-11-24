@@ -51,10 +51,12 @@ def _num(v: float | None, d: int = 2) -> str:
     return f"{v:,.{d}f}"
 
 
-def _money(v: float | None, sym: str, d: int = 2) -> str:
+def _money(v: float | None, sym: str, d: int = 2, html: bool = True) -> str:
+    """Amount with the currency symbol; the symbol is escaped for HTML (it can be any text the user typed)."""
     if v is None:
         return "-"
-    return f"{sym}{_num(v, d)}" if len(sym) <= 2 else f"{_num(v, d)} {sym}"
+    s = escape(sym) if html else sym
+    return f"{s}{_num(v, d)}" if len(sym) <= 2 else f"{_num(v, d)} {s}"
 
 
 def _day(iso: str) -> date:
@@ -190,7 +192,7 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
     running = which == "current"
     name = escape(data.get("name") or "Powerbill Forecast")
     tariff_name = escape(snap.get("tariff") or "")
-    subject = f"⚡ Electricity bill {month:%B %Y}: {_money(bill['total'], sym)}" + (" (so far)" if running else "")
+    subject = f"⚡ Electricity bill {month:%B %Y}: {_money(bill['total'], sym, html=False)}" + (" (so far)" if running else "")
 
     info_top = "".join(
         [
@@ -326,7 +328,7 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
         f"Ft {snap['ft']}: {_num(bill['ft'])}" if snap.get("ft") else "",
         f"Total electricity charge: {_num(bill['subtotal'])}",
         f"VAT: {_num(bill['vat'])}" if data.get("vat") else "",
-        f"Total amount: {_money(bill['total'], sym)}",
+        f"Total amount: {_money(bill['total'], sym, html=False)}",
         f"Meter check: utility {_num(snap['utility_kwh'], 2)} kWh, Home Assistant {_num(snap['ha_kwh'], 2)} kWh"
         if snap.get("utility_kwh") is not None and snap.get("ha_kwh")
         else "",

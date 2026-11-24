@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 - 2026-11-24
+
+- **Currency symbol escaped** in the card and in the bill e-mail, and the currency must now be a three-letter ISO code (e.g. THB, EUR) in the setup and options form
+- **Button "Meter read now"** shows a clear error message instead of a traceback when the meter has no statistics for the period
+
 ## 0.1.3 - 2026-11-24
 
 - **Bill e-mail on tablets**: the meter reading box shows the date only, the time moved to the meter check line - the wide box made Gmail on tablets squeeze the usage history and hide the daily energy bars
