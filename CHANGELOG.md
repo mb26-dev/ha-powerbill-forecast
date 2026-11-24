@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 - 2026-11-24
+
+- **Meter reading**: new action `powerbill_forecast.meter_reading` (date and time from the bill, optional consumption from the bill) and button **Meter read now** - the bill ends exactly at the utility's reading, the next cycle continues from there
+- **Meter check** in the report: consumption on the bill vs. your Home Assistant meter
+- **Satang-exact bills**: every line (energy, Ft, subtotal, VAT) is rounded before it is added up, like the paper bill
+- **Blueprint survives restarts**: the report no longer waits for hours after the cycle closes - it is sent at the send time (or right away after a meter reading), even if Home Assistant restarted in between. Re-import the blueprint to update
+
 ## 0.1.1 - 2026-11-23
 
 - **New Thai residential tariff** (valid from the September 2026 bills) in the PEA / MEA presets: first 200 kWh at 3.0000, 201-400 at 4.1584, from 401 at 4.3583 THB/kWh. Checked against real PEA bills to the satang
@@ -39,5 +46,5 @@ First beta.
 - Fuel adjustment (Ft) as a fixed value or from any sensor, service fee and VAT
 - Billing cycle on any day of the month, utility meters and lifetime meters
 - Month-end forecast that blends the cycle average with the last 7 days
-- 10 sensors: forecast bill, current bill, previous cycle bill, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
+- 10 sensors: forecast bill, current bill, previous cycle bill, Ft surcharge, cycle and forecast energy, tier, energy to next tier, price of the next kWh, average price, days left
 - `custom:powerbill-forecast-card` with animated tier staircase, daily energy bars and bill details

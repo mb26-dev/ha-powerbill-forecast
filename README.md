@@ -129,6 +129,7 @@ Rates valid from the September 2026 bills. VAT 7 % is applied to energy, Ft and 
 | `sensor.powerbill_forecast_average_price` | Total bill / kWh |
 | `sensor.powerbill_forecast_days_left_in_cycle` | Days until the meter reading |
 | `sensor.powerbill_forecast_ft_surcharge` | Ft in use, with `period`, `source` and the last download |
+| `button.powerbill_forecast_meter_read_now` | Closes the bill at this moment (the meter reader has been) |
 
 The entity IDs follow the name you give the integration.
 
@@ -159,7 +160,7 @@ The card works on phones and wall tablets and respects *reduce motion*.
 ### Blueprint
 [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fmb26-dev%2Fha-powerbill-forecast%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fpowerbill_forecast%2Fmonthly_bill_report.yaml)
 
-The automation waits for the meter reading, builds the report and runs your send actions with the variables `report_subject`, `report_html`, `report_text`, `report_total` and `report_kwh`. Example for an SMTP e-mail:
+The automation sends the report when a cycle closes - at the send time if that happens at night, right away after a recorded meter reading, and safe across restarts - and runs your send actions with the variables `report_subject`, `report_html`, `report_text`, `report_total` and `report_kwh`. Example for an SMTP e-mail:
 
 ```yaml
 action: notify.send_message
@@ -171,6 +172,21 @@ data:
 ```
 
 For HTML mail use the action of your mail integration with `html: "{{ report_html }}"`.
+
+### 🧮 Match the paper bill exactly
+The utility does not read the meter at midnight. To end the cycle at the real reading, record it - the bill is then closed right away and the report is sent:
+
+- press **Meter read now** (button entity) when the meter reader has been, or
+- use the action with the date and time printed on the bill - optionally with the consumption from the bill, which is then compared with your Home Assistant meter:
+
+```yaml
+action: powerbill_forecast.meter_reading
+data:
+  reading_time: "2026-11-23 12:20:00"
+  consumption: 473
+```
+
+The next cycle continues exactly at this reading. Without a recorded reading the cycle closes automatically on the configured day. Every line of the bill is rounded to satang before it is added up, the same way PEA prints it.
 
 ### Action `powerbill_forecast.build_report`
 Returns `subject`, `html`, `text`, `total` and `kwh`. `cycle: previous` is the finished bill, `cycle: current` the running cycle with forecast - handy to try the design right away:
@@ -185,7 +201,7 @@ response_variable: report
 ### Events
 | Event | When |
 |---|---|
-| `powerbill_forecast_cycle_closed` | A billing cycle has finished (about 2 hours after the meter reading day starts) |
+| `powerbill_forecast_cycle_closed` | A billing cycle has finished (about 2 hours after the meter reading day starts, or when a meter reading is recorded) |
 | `powerbill_forecast_ft_changed` | PEA published a new Ft (`old`, `new`, `period`) |
 
 ---

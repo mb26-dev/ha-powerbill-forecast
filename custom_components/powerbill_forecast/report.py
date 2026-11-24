@@ -61,9 +61,22 @@ def _day(iso: str) -> date:
     return datetime.fromisoformat(iso).date()
 
 
+def _last_day(end_iso: str) -> date:
+    """Last day of the cycle: the day before a midnight change, the reading day for a meter reading."""
+    end = datetime.fromisoformat(end_iso)
+    return end.date() - timedelta(days=1) if (end.hour, end.minute, end.second) == (0, 0, 0) else end.date()
+
+
+def _reading_label(end_iso: str) -> str:
+    end = datetime.fromisoformat(end_iso)
+    if (end.hour, end.minute, end.second) == (0, 0, 0):
+        return f"{end:%d/%m/%Y}"
+    return f"{end:%d/%m/%Y %H:%M}"
+
+
 def _period(start_iso: str, end_iso: str) -> str:
     start = _day(start_iso)
-    last = _day(end_iso) - timedelta(days=1)
+    last = _last_day(end_iso)
     if start.year == last.year:
         return f"{start:%d %b} - {last:%d %b %Y}"
     return f"{start:%d %b %Y} - {last:%d %b %Y}"
@@ -173,8 +186,7 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
     n = len(tiers)
     bill = snap["bill"]
     period = _period(snap["cycle_start"], snap["cycle_end"])
-    reading = _day(snap["cycle_end"])
-    month = reading - timedelta(days=1)
+    month = _last_day(snap["cycle_end"])
     running = which == "current"
     name = escape(data.get("name") or "Powerbill Forecast")
     tariff_name = escape(snap.get("tariff") or "")
@@ -184,7 +196,7 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
         [
             _label_cell("TARIFF", tariff_name.split(" Residential")[0] or "-", "25%"),
             _label_cell("BILL PERIOD", f"{month:%m/%Y}", "25%"),
-            _label_cell("METER READING DATE", f"{reading:%d/%m/%Y}" + (" (next)" if running else ""), "25%"),
+            _label_cell("METER READING DATE", _reading_label(snap["cycle_end"]) + (" (next)" if running else ""), "25%"),
             _label_cell("CONSUMPTION", f"{_num(bill['kwh'], 2)} kWh", "25%"),
         ]
     )
@@ -195,6 +207,14 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
             _label_cell("AVERAGE PRICE", f"{_money(bill.get('average_price'), sym)}/kWh", "25%"),
         ]
     )
+
+    meter_check = ""
+    if snap.get("utility_kwh") is not None and snap.get("ha_kwh"):
+        dev = (snap["ha_kwh"] - snap["utility_kwh"]) / snap["utility_kwh"] * 100 if snap["utility_kwh"] else 0.0
+        meter_check = (
+            f'<div style="font-size:11px;color:{MUTED};margin:6px 3px 0;">Meter check: utility meter <b style="color:{INK};">{_num(snap["utility_kwh"], 2)} kWh</b>'
+            f' &middot; Home Assistant <b style="color:{INK};">{_num(snap["ha_kwh"], 2)} kWh</b> ({dev:+.1f}%)</div>'
+        )
 
     rows = []
     tier_lines = []
@@ -263,6 +283,7 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
 <tr><td style="padding:6px 15px 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>{info_top}</tr></table>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>{info_bottom}</tr></table>
+  {meter_check}
 </td></tr>
 <tr><td style="padding:14px 18px 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
@@ -292,7 +313,7 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
 
     lines = [
         subject,
-        f"Bill period {month:%m/%Y} · meter reading {reading:%d/%m/%Y} · {period}",
+        f"Bill period {month:%m/%Y} · meter reading {_reading_label(snap['cycle_end'])} · {period}",
         f"Consumption: {_num(bill['kwh'], 2)} kWh (tier {bill['current_tier']}/{n})",
         f"Energy charge: {_num(bill['energy'])}",
         *(f"  {_num(r['kwh'], 2)} kWh x {r['rate']} = {_num(r['cost'])}" for r in bill["tiers"] if r["kwh"] > 0),
@@ -301,6 +322,9 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
         f"Total electricity charge: {_num(bill['subtotal'])}",
         f"VAT: {_num(bill['vat'])}" if data.get("vat") else "",
         f"Total amount: {_money(bill['total'], sym)}",
+        f"Meter check: utility {_num(snap['utility_kwh'], 2)} kWh, Home Assistant {_num(snap['ha_kwh'], 2)} kWh"
+        if snap.get("utility_kwh") is not None and snap.get("ha_kwh")
+        else "",
         "Usage history: " + ", ".join(f"{h['date']} {_num(h['kwh'], 0)} kWh" for h in (snap.get("history") or [])[:6]) if snap.get("history") else "",
     ]
     return {
@@ -312,4 +336,5 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
         "kwh": bill["kwh"],
         "total": bill["total"],
         "currency": data.get("currency"),
+        "closed_at": snap.get("closed_at"),
     }
