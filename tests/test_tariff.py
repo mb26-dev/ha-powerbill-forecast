@@ -14,7 +14,7 @@ _spec.loader.exec_module(tariff)
 BKK = timezone(timedelta(hours=7))
 
 
-def approx(a, b, tol=0.01):
+def approx(a, b, tol=0.001):
     assert abs(a - b) <= tol, f"{a} != {b}"
 
 
@@ -30,6 +30,7 @@ def test_pea_large_bill_matches_paper_bill():
     assert bill["current_tier"] == 3
     assert bill["kwh_to_next_tier"] is None
     approx(bill["marginal_price"], (4.3583 + 0.1623) * 1.07, 0.0001)
+    assert bill["total"] == 1980.82  # to the satang, line by line like the paper bill
     # PEA bill 10/2569: 421 kWh -> 1,729.28
     approx(tariff.compute_bill(421, p.tiers, 0.1623, p.service_fee, p.vat)["total"], 1729.28)
 
@@ -37,7 +38,7 @@ def test_pea_large_bill_matches_paper_bill():
 def test_pea_small_bill():
     p = tariff.PRESETS["pea_1_1"]
     bill = tariff.compute_bill(120, p.tiers, ft=0.0, service_fee=p.service_fee, vat=7)
-    approx(bill["energy"], 15 * 2.3488 + 10 * 2.9882 + 95 * 3.0)
+    approx(bill["energy"], 15 * 2.3488 + 10 * 2.9882 + 95 * 3.0, 0.006)
     assert bill["current_tier"] == 3
     approx(bill["kwh_to_next_tier"], 80)
 

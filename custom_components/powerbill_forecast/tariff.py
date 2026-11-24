@@ -5,6 +5,7 @@ from __future__ import annotations
 import calendar
 import re
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from datetime import date, datetime, timedelta
 from html import unescape as html_unescape
 
@@ -88,6 +89,11 @@ def format_tiers(tiers: tuple[Tier, ...]) -> str:
     return ", ".join(f"{'*' if t.limit == INF else f'{t.limit:g}'}={t.rate:g}" for t in tiers)
 
 
+def _r2(value: float) -> float:
+    """Round to satang like a paper bill (half up, not banker's rounding)."""
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 def compute_bill(
     kwh: float,
     tiers: tuple[Tier, ...],
@@ -121,19 +127,22 @@ def compute_bill(
         lower = tier.limit
     cur = tiers[current - 1]
     next_tier = tiers[current] if current < len(tiers) else None
-    ft_cost = kwh * ft
-    subtotal = energy + ft_cost + service_fee
-    vat_cost = subtotal * vat / 100
-    total = subtotal + vat_cost
+    # every line is rounded to satang first, then added up - exactly like the utility prints it
+    energy = _r2(energy)
+    ft_cost = _r2(kwh * ft)
+    fee = _r2(service_fee)
+    subtotal = _r2(energy + ft_cost + fee)
+    vat_cost = _r2(subtotal * vat / 100)
+    total = _r2(subtotal + vat_cost)
     return {
         "kwh": round(kwh, 4),
         "tiers": rows,
-        "energy": round(energy, 2),
-        "ft": round(ft_cost, 2),
-        "service_fee": round(service_fee, 2),
-        "subtotal": round(subtotal, 2),
-        "vat": round(vat_cost, 2),
-        "total": round(total, 2),
+        "energy": energy,
+        "ft": ft_cost,
+        "service_fee": fee,
+        "subtotal": subtotal,
+        "vat": vat_cost,
+        "total": total,
         "current_tier": current,
         "tier_count": len(tiers),
         "kwh_to_next_tier": None if next_tier is None else round(cur.limit - kwh, 3),

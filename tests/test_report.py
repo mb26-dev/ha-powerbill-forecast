@@ -58,6 +58,27 @@ def test_current_report_and_missing_previous():
     assert report.build_report(data, "previous") is None
 
 
+def test_meter_reading_report_matches_paper_bill():
+    """PEA bill 11/2569: read 23/11 12:20, 473 kWh on the bill -> 1,980.82."""
+    data = _data()
+    preset = tariff.PRESETS["pea_1_2"]
+    data["previous"] = {
+        **data["previous"],
+        "cycle_start": "2026-10-24T00:00:00+07:00",
+        "cycle_end": "2026-11-23T12:20:00+07:00",
+        "reading": "meter",
+        "kwh": 473.0,
+        "utility_kwh": 473.0,
+        "ha_kwh": 475.12,
+        "bill": tariff.compute_bill(473, preset.tiers, 0.1623, preset.service_fee, preset.vat),
+    }
+    rep = report.build_report(data, "previous")
+    assert rep["total"] == 1980.82
+    assert "23/11/2026 12:20" in rep["html"] and "24 Oct - 23 Nov 2026" in rep["html"]
+    assert rep["subject"].startswith("⚡ Electricity bill November 2026: ฿1,980.82")
+    assert "Meter check" in rep["html"] and "+0.4%" in rep["html"]
+
+
 def test_tier_colors_match_card():
     assert report.tier_color(0, 3) == "#22d3ee"
     assert report.tier_color(2, 3) == "#ef4444"

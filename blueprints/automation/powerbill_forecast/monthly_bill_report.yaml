@@ -1,10 +1,14 @@
 blueprint:
   name: Powerbill Forecast - monthly bill report
   description: >
-    Sends the bill report in the Powerbill Forecast design when a billing cycle has finished
-    (the day of the meter reading). Use the variables `report_subject`, `report_html` and
-    `report_text` in your own send actions, e.g. an SMTP e-mail with `html: "{{ report_html }}"`
-    or a phone notification with `message: "{{ report_text }}"`.
+    Sends the bill report in the Powerbill Forecast design when a billing cycle has finished -
+    automatically on the meter reading day, or right away when you record the utility's meter
+    reading (button "Meter read now" or action powerbill_forecast.meter_reading).
+    A cycle that closes before the send time (e.g. at night) is sent at the send time; a restart
+    of Home Assistant in between does not lose the report.
+    Use the variables `report_subject`, `report_html` and `report_text` in your own send actions,
+    e.g. an SMTP e-mail with `html: "{{ report_html }}"` or a phone notification with
+    `message: "{{ report_text }}"`.
   domain: automation
   source_url: https://github.com/mb26-dev/ha-powerbill-forecast/blob/main/blueprints/automation/powerbill_forecast/monthly_bill_report.yaml
   input:
@@ -16,7 +20,7 @@ blueprint:
           integration: powerbill_forecast
     send_time:
       name: Send at
-      description: The cycle closes shortly after midnight of the meter reading day; the report waits until this time.
+      description: Earliest time of day for the report. A cycle that closes earlier is sent at this time.
       default: "08:00:00"
       selector:
         time: {}
@@ -29,25 +33,41 @@ blueprint:
       selector:
         action: {}
 
-mode: single
+mode: queued
+
+variables:
+  forecast: !input forecast
+  send_time: !input send_time
+  closed_at: >
+    {% set ns = namespace(value=none) %}
+    {% for e in integration_entities('powerbill_forecast') %}
+      {% if config_entry_id(e) == forecast and state_attr(e, 'closed_at') %}
+        {% set ns.value = state_attr(e, 'closed_at') %}
+      {% endif %}
+    {% endfor %}
+    {{ ns.value }}
 
 triggers:
   - trigger: event
     event_type: powerbill_forecast_cycle_closed
     event_data:
       entry_id: !input forecast
+  - trigger: time
+    at: !input send_time
+
+conditions:
+  # a bill was closed today (or in the last 12 hours), it is not earlier than the send time,
+  # and it has not been sent yet (last run before the bill was closed)
+  - condition: template
+    value_template: >
+      {% set closed = as_datetime(closed_at) if closed_at not in [none, '', 'None'] else none %}
+      {% set last = this.attributes.last_triggered if this is defined and this.attributes is defined else none %}
+      {{ closed is not none
+         and ((closed | as_local).date() == now().date() or now() - closed < timedelta(hours=12))
+         and now().strftime('%H:%M:%S') >= send_time
+         and (last is none or last < closed) }}
 
 actions:
-  - variables:
-      send_time: !input send_time
-  - if:
-      - condition: template
-        value_template: "{{ now().strftime('%H:%M:%S') < send_time }}"
-    then:
-      - wait_for_trigger:
-          - trigger: time
-            at: !input send_time
-        timeout: "24:00:00"
   - action: powerbill_forecast.build_report
     data:
       config_entry_id: !input forecast
