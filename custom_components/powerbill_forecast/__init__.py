@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CARD_FILE,
@@ -21,6 +22,7 @@ from .const import (
     DOMAIN,
     FT_SOURCE_PEA,
     SERVICE_BUILD_REPORT,
+    SERVICE_METER_READING,
     URL_FRONTEND,
     VERSION,
 )
@@ -28,7 +30,7 @@ from .coordinator import PowerbillCoordinator
 from .ft import PeaFtProvider
 from .report import build_report
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -36,6 +38,14 @@ REPORT_SCHEMA = vol.Schema(
     {
         vol.Optional("config_entry_id"): cv.string,
         vol.Optional("cycle", default="previous"): vol.In(["previous", "current"]),
+    }
+)
+
+READING_SCHEMA = vol.Schema(
+    {
+        vol.Optional("config_entry_id"): cv.string,
+        vol.Optional("reading_time"): cv.datetime,
+        vol.Optional("consumption"): vol.All(vol.Coerce(float), vol.Range(min=0)),
     }
 )
 
@@ -49,7 +59,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await hass.http.async_register_static_paths([StaticPathConfig(URL_FRONTEND, str(frontend_dir), False)])
     add_extra_js_url(hass, f"{URL_FRONTEND}/{CARD_FILE}?v={VERSION}")
 
-    async def _build_report(call: ServiceCall) -> ServiceResponse:
+    def _coordinator(call: ServiceCall) -> PowerbillCoordinator:
         entries = [
             e for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED
         ]
@@ -58,7 +68,27 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             entries = [e for e in entries if e.entry_id == wanted]
         if not entries:
             raise ServiceValidationError("No loaded Powerbill Forecast found for this request")
-        coordinator: PowerbillCoordinator = hass.data[DOMAIN][entries[0].entry_id]
+        return hass.data[DOMAIN][entries[0].entry_id]
+
+    async def _meter_reading(call: ServiceCall) -> ServiceResponse:
+        coordinator = _coordinator(call)
+        when = call.data.get("reading_time")
+        if when is not None and when.tzinfo is None:
+            when = dt_util.as_local(when.replace(tzinfo=dt_util.get_default_time_zone()))
+        try:
+            snap = await coordinator.async_meter_reading(when, call.data.get("consumption"))
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+        return {
+            "cycle_start": snap["cycle_start"],
+            "cycle_end": snap["cycle_end"],
+            "kwh": snap["kwh"],
+            "ha_kwh": snap["ha_kwh"],
+            "total": snap["bill"]["total"],
+        }
+
+    async def _build_report(call: ServiceCall) -> ServiceResponse:
+        coordinator = _coordinator(call)
         if not coordinator.data:
             raise ServiceValidationError("Powerbill Forecast has no data yet")
         report = build_report(coordinator.data, call.data["cycle"], VERSION)
@@ -68,6 +98,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(
         DOMAIN, SERVICE_BUILD_REPORT, _build_report, schema=REPORT_SCHEMA, supports_response=SupportsResponse.ONLY
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_METER_READING, _meter_reading, schema=READING_SCHEMA, supports_response=SupportsResponse.OPTIONAL
     )
     return True
 

@@ -13,3 +13,25 @@ build_report:
           options:
             - previous
             - current
+meter_reading:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: powerbill_forecast
+    reading_time:
+      required: false
+      example: "2026-11-23 12:20:00"
+      selector:
+        datetime: {}
+    consumption:
+      required: false
+      example: 473
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.01
+          unit_of_measurement: kWh
+          mode: box

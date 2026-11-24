@@ -1,7 +1,7 @@
 """Constants for Powerbill Forecast."""
 
 DOMAIN = "powerbill_forecast"
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 CARD_FILE = "powerbill-forecast-card.js"
 URL_FRONTEND = "/powerbill_forecast_static"
@@ -34,7 +34,9 @@ RECENT_DAYS = 7
 
 FT_REFRESH_HOURS = 12
 CLOSE_DELAY_HOURS = 2  # wait for the statistics of the last hour before closing a cycle
+READING_WINDOW_DAYS = 5  # a meter reading this close to the cycle change replaces the automatic close
 
 EVENT_FT_CHANGED = "powerbill_forecast_ft_changed"
 EVENT_CYCLE_CLOSED = "powerbill_forecast_cycle_closed"
 SERVICE_BUILD_REPORT = "build_report"
+SERVICE_METER_READING = "meter_reading"

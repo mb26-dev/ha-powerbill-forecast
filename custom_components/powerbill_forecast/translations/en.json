@@ -102,6 +102,24 @@
           "description": "previous = the finished billing cycle (the bill), current = the running cycle with forecast."
         }
       }
+    },
+    "meter_reading": {
+      "name": "Meter reading",
+      "description": "Close the billing cycle at the utility's meter reading - with the date and time printed on the bill the report matches the paper bill exactly.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Powerbill Forecast",
+          "description": "Which forecast. Optional if you have only one."
+        },
+        "reading_time": {
+          "name": "Reading date and time",
+          "description": "As printed on the bill (meter reading date). Empty = now."
+        },
+        "consumption": {
+          "name": "Consumption on the bill",
+          "description": "Optional: the kWh printed on the bill. The bill is then calculated with this value and compared with your Home Assistant meter."
+        }
+      }
     }
   }
 }
