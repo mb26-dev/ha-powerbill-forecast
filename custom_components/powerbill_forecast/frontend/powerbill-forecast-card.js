@@ -73,10 +73,11 @@ class PowerbillForecastCard extends HTMLElement {
     return new Intl.NumberFormat(this._lang(), { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
   }
 
-  _money(v, d = 2) {
+  _money(v, d = 2, html = true) {
     if (v === null || v === undefined || isNaN(v)) return "–";
-    const s = this._data()?.symbol || "";
-    return s.length <= 2 ? s + this._num(v, d) : this._num(v, d) + " " + s;
+    const raw = String(this._data()?.symbol || "");
+    const s = html ? esc(raw) : raw; // the symbol can be any text the user typed - never raw into innerHTML
+    return raw.length <= 2 ? s + this._num(v, d) : this._num(v, d) + " " + s;
   }
 
   _date(iso, opts = { day: "numeric", month: "short" }) {
@@ -171,7 +172,7 @@ class PowerbillForecastCard extends HTMLElement {
       const step = (t) => {
         const p = Math.min(1, (t - t0) / dur);
         const e = 1 - Math.pow(1 - p, 3);
-        el.textContent = this._money(target * e);
+        el.textContent = this._money(target * e, 2, false);
         if (p < 1) requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
