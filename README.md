@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white" alt="HACS"></a>
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=mb26-dev&repository=ha-powerbill-forecast&category=integration"><img src="https://img.shields.io/badge/HACS-Default-41BDF5?logo=homeassistantcommunitystore&logoColor=white" alt="HACS Default"></a>
   <a href="https://github.com/mb26-dev/ha-powerbill-forecast/releases"><img src="https://img.shields.io/github/v/release/mb26-dev/ha-powerbill-forecast?label=release" alt="Release"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-2025.1%2B-18BCF2?logo=homeassistant&logoColor=white" alt="Home Assistant">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/mb26-dev/ha-powerbill-forecast" alt="License"></a>
@@ -76,10 +76,19 @@ Presets for **PEA** and **MEA** (Thailand) are built in. For any other utility, 
 
 ## 📦 Installation
 
-### HACS (recommended)
-1. HACS → ⋮ → **Custom repositories** → add `https://github.com/mb26-dev/ha-powerbill-forecast` as **Integration**
-2. Install **Powerbill Forecast** and restart Home Assistant
+### HACS / Home Assistant Marketplace (recommended)
+Powerbill Forecast is part of the default HACS repository list - just search for it.
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mb26-dev&repository=ha-powerbill-forecast&category=integration)
+
+1. Click the button above, or open HACS (**Settings → Marketplace** on Home Assistant 2026.11+) and search for **Powerbill Forecast**
+2. Install it and restart Home Assistant
 3. **Settings → Devices & services → Add integration → Powerbill Forecast**
+
+If you added this repository as a custom repository before, you can remove that entry; the installed integration and its settings stay as they are.
+
+### HACS custom repository (fallback)
+If your HACS does not list it yet: HACS → ⋮ → **Custom repositories** → add `https://github.com/mb26-dev/ha-powerbill-forecast` as **Integration**, then install as above.
 
 ### Manual
 Copy `custom_components/powerbill_forecast` into your `config/custom_components` folder and restart.
