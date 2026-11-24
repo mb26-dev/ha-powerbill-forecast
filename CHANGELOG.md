@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 - 2026-11-24
+
+- **Bill e-mail on tablets**: the meter reading box shows the date only, the time moved to the meter check line - the wide box made Gmail on tablets squeeze the usage history and hide the daily energy bars
+- **Meter reading during the day**: the daily energy counts only the part of the reading day that belongs to the cycle - the morning before a 12:20 reading is no longer missing, and the next cycle starts with the afternoon
+
 ## 0.1.2 - 2026-11-24
 
 - **Meter reading**: new action `powerbill_forecast.meter_reading` (date and time from the bill, optional consumption from the bill) and button **Meter read now** - the bill ends exactly at the utility's reading, the next cycle continues from there

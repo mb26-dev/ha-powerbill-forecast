@@ -196,7 +196,8 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
         [
             _label_cell("TARIFF", tariff_name.split(" Residential")[0] or "-", "25%"),
             _label_cell("BILL PERIOD", f"{month:%m/%Y}", "25%"),
-            _label_cell("METER READING DATE", _reading_label(snap["cycle_end"]) + (" (next)" if running else ""), "25%"),
+            # date only: a long, non-wrapping box widens the mail and some clients (Gmail on tablets) then squeeze the charts
+            _label_cell("METER READING DATE", f"{datetime.fromisoformat(snap['cycle_end']):%d/%m/%Y}" + (" (next)" if running else ""), "25%"),
             _label_cell("CONSUMPTION", f"{_num(bill['kwh'], 2)} kWh", "25%"),
         ]
     )
@@ -209,12 +210,16 @@ def build_report(data: dict[str, Any], which: str = "previous", version: str = "
     )
 
     meter_check = ""
+    read_at = _reading_label(snap["cycle_end"])
+    parts = [] if running or " " not in read_at else [f"Meter read {read_at}"]
     if snap.get("utility_kwh") is not None and snap.get("ha_kwh"):
         dev = (snap["ha_kwh"] - snap["utility_kwh"]) / snap["utility_kwh"] * 100 if snap["utility_kwh"] else 0.0
-        meter_check = (
-            f'<div style="font-size:11px;color:{MUTED};margin:6px 3px 0;">Meter check: utility meter <b style="color:{INK};">{_num(snap["utility_kwh"], 2)} kWh</b>'
-            f' &middot; Home Assistant <b style="color:{INK};">{_num(snap["ha_kwh"], 2)} kWh</b> ({dev:+.1f}%)</div>'
+        parts.append(
+            f'utility meter <b style="color:{INK};">{_num(snap["utility_kwh"], 2)} kWh</b>'
+            f' &middot; Home Assistant <b style="color:{INK};">{_num(snap["ha_kwh"], 2)} kWh</b> ({dev:+.1f}%)'
         )
+    if parts:
+        meter_check = f'<div style="font-size:11px;color:{MUTED};margin:6px 3px 0;">{" &middot; ".join(parts)}</div>'
 
     rows = []
     tier_lines = []

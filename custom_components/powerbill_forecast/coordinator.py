@@ -181,7 +181,10 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("No daily statistics for %s: %s", self.source, err)
             return []
         factor = self._unit_factor()
-        first, last = dt_util.as_local(start).date(), dt_util.as_local(end).date()
+        start_l, end_l = dt_util.as_local(start), dt_util.as_local(end)
+        first, last = start_l.date(), end_l.date()
+        start_midnight = start_l == dt_util.start_of_local_day(start_l)
+        end_midnight = end_l == dt_util.start_of_local_day(end_l)
         days = []
         for row in result.get(self.source, []):
             ts = row.get("start")
@@ -191,12 +194,24 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             day = dt_util.as_local(when).date()
             if not first <= day < last:  # the recorder also returns the day that starts at `end`
                 continue
+            if day == first and not start_midnight:
+                continue  # replaced below by the part after the meter reading
             days.append(
                 {
                     "date": day.isoformat(),
                     "kwh": round(max(0.0, (_num(row.get("change")) or 0.0) * factor), 3),
                 }
             )
+        # a cycle that starts or ends at a meter reading during the day: count only its part of that day
+        if not start_midnight:
+            next_midnight = dt_util.start_of_local_day(start_l + timedelta(days=1))
+            part = await self._change(start, min(next_midnight, end))
+            if part is not None:
+                days.insert(0, {"date": first.isoformat(), "kwh": round(max(0.0, part), 3)})
+        if not end_midnight and last != first:
+            part = await self._change(dt_util.start_of_local_day(end_l), end)
+            if part is not None:
+                days.append({"date": last.isoformat(), "kwh": round(max(0.0, part), 3)})
         return days
 
     async def _previous_kwh(self, start: datetime) -> float | None:

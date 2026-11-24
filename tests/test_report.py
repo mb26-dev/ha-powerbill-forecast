@@ -76,7 +76,8 @@ def test_meter_reading_report_matches_paper_bill():
     assert rep["total"] == 1980.82
     assert "23/11/2026 12:20" in rep["html"] and "24 Oct - 23 Nov 2026" in rep["html"]
     assert rep["subject"].startswith("⚡ Electricity bill November 2026: ฿1,980.82")
-    assert "Meter check" in rep["html"] and "+0.4%" in rep["html"]
+    assert "Meter read 23/11/2026 12:20" in rep["html"] and "+0.4%" in rep["html"]
+    assert "23/11/2026 12:20</td>" not in rep["html"]  # the box keeps the date only, so the mail does not get wider
 
 
 def test_tier_colors_match_card():
