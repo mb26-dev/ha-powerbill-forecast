@@ -41,6 +41,7 @@ from .const import (
     FT_SOURCE_PEA,
     METER_CYCLE,
     METER_LIFETIME,
+    READING_WINDOW_DAYS,
     RECENT_DAYS,
     UPDATE_MINUTES,
 )
@@ -225,6 +226,23 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             cursor = prev_start
         return rows
 
+    @staticmethod
+    def _when(value: Any) -> datetime | None:
+        if not value:
+            return None
+        parsed = dt_util.parse_datetime(str(value))
+        return dt_util.as_local(parsed) if parsed else None
+
+    def _near(self, value: Any, moment: datetime) -> bool:
+        """True when `value` (an ISO time) lies within a few days of `moment`."""
+        when = self._when(value)
+        return when is not None and abs((when - moment).total_seconds()) < READING_WINDOW_DAYS * 86400
+
+    def _covers(self, closed: dict[str, Any] | None, cycle_end: datetime) -> bool:
+        """True when the stored bill ends at this cycle change or later (e.g. a meter reading a day early)."""
+        when = self._when((closed or {}).get("cycle_end"))
+        return when is not None and when >= cycle_end - timedelta(days=READING_WINDOW_DAYS)
+
     async def _cycle_kwh(self, meter: float, start: datetime, now: datetime) -> float:
         if self.meter_type != METER_LIFETIME:
             return max(0.0, meter)
@@ -251,11 +269,17 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         prev_start, prev_end = previous_cycle(start, self.reset_day)
         key = prev_start.isoformat()
         closed = self._saved.get("closed")
-        if closed and closed.get("cycle_start") == key:
-            return closed
+        if closed and (closed.get("cycle_start") == key or self._covers(closed, prev_end)):
+            return closed  # already closed - automatically or by a meter reading
         if now < start + timedelta(hours=CLOSE_DELAY_HOURS):
             return closed
-        kwh = await self._previous_kwh(start)
+        last_reading = self._saved.get("last_reading")
+        if self._near(last_reading, prev_start) and self._when(last_reading) != prev_start:
+            # continue exactly at the previous meter reading
+            prev_start = self._when(last_reading)
+            kwh = await self._change(prev_start, prev_end)
+        else:
+            kwh = await self._previous_kwh(start)
         if kwh is None:
             return closed
         history = await self._history(start)
@@ -265,8 +289,9 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             history.insert(0, {"date": end_day, "kwh": round(kwh, 1)})
         snapshot = {
-            "cycle_start": key,
+            "cycle_start": prev_start.isoformat(),
             "cycle_end": prev_end.isoformat(),
+            "reading": "automatic",
             "kwh": round(kwh, 3),
             "ft": ft.get("value") or 0.0,
             "ft_period": ft.get("period"),
@@ -280,6 +305,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
         first_run = "closed" not in self._saved
         self._saved["closed"] = snapshot
+        self._saved["last_reading"] = prev_end.isoformat()
         await self._save()
         if not first_run:  # no report for a cycle that ended before the integration was set up
             self.hass.bus.async_fire(
@@ -295,6 +321,72 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 },
             )
             _LOGGER.info("Billing cycle %s closed: %s kWh, %s %s", key, snapshot["kwh"], snapshot["bill"]["total"], self.currency)
+        return snapshot
+
+    async def async_meter_reading(self, when: datetime | None = None, utility_kwh: float | None = None) -> dict[str, Any]:
+        """Close the billing cycle at the utility's meter reading (date and time printed on the bill).
+
+        The cycle runs from the previous reading to `when`; the energy comes from the long-term statistics
+        (5-minute precision for recent days). `utility_kwh` - the consumption printed on the bill - makes the
+        bill match the paper bill exactly and is compared with the Home Assistant meter.
+        """
+        when = dt_util.as_local(when or dt_util.now())
+        if when > dt_util.now() + timedelta(minutes=5):
+            raise ValueError("the meter reading lies in the future")
+        last = self._when(self._saved.get("last_reading"))
+        if last and timedelta(days=20) < when - last < timedelta(days=45):
+            start = last
+        else:
+            start = cycle_bounds(when - timedelta(days=3), self.reset_day)[0]
+        ha_kwh = await self._change(start, when)
+        if ha_kwh is None and utility_kwh is None:
+            raise ValueError("no statistics for the energy meter in this period - enter the consumption from the bill")
+        kwh = float(utility_kwh) if utility_kwh is not None else ha_kwh
+        ft = self._ft()
+        closed = self._saved.get("closed")
+        if closed and self._near(closed.get("cycle_end"), when):
+            # replaces the automatic close of the same cycle - keep its comparison values
+            before_kwh, before_total = closed.get("before_kwh"), closed.get("before_total")
+        else:
+            before_kwh = closed.get("kwh") if closed else None
+            before_total = closed["bill"]["total"] if closed else None
+        history = await self._history(start)
+        history.insert(0, {"date": when.date().isoformat(), "kwh": round(kwh, 1)})
+        snapshot = {
+            "cycle_start": start.isoformat(),
+            "cycle_end": when.isoformat(),
+            "reading": "meter",
+            "kwh": round(kwh, 3),
+            "ha_kwh": None if ha_kwh is None else round(ha_kwh, 3),
+            "utility_kwh": None if utility_kwh is None else round(float(utility_kwh), 3),
+            "ft": ft.get("value") or 0.0,
+            "ft_period": ft.get("period"),
+            "tariff": self.tariff_name,
+            "bill": compute_bill(kwh, self.tiers, ft.get("value") or 0.0, self.service_fee, self.vat),
+            "daily": await self._daily(start, when),
+            "history": history[:6],
+            "closed_at": dt_util.now().isoformat(),
+            "before_kwh": before_kwh,
+            "before_total": before_total,
+        }
+        self._saved["closed"] = snapshot
+        self._saved["last_reading"] = when.isoformat()
+        await self._save()
+        self.hass.bus.async_fire(
+            EVENT_CYCLE_CLOSED,
+            {
+                "entry_id": self.config_entry.entry_id,
+                "name": self.title,
+                "cycle_start": snapshot["cycle_start"],
+                "cycle_end": snapshot["cycle_end"],
+                "kwh": snapshot["kwh"],
+                "total": snapshot["bill"]["total"],
+                "currency": self.currency,
+                "reading": "meter",
+            },
+        )
+        _LOGGER.info("Meter reading %s: %s kWh, %s %s", snapshot["cycle_end"], snapshot["kwh"], snapshot["bill"]["total"], self.currency)
+        await self.async_request_refresh()
         return snapshot
 
     # ------------------------------------------------------------------ update
@@ -324,7 +416,7 @@ class PowerbillCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         closed = await self._closed_cycle(start, now, ft_info)
         prev_start, prev_end = previous_cycle(start, self.reset_day)
-        if closed and closed.get("cycle_start") == prev_start.isoformat():
+        if closed and (closed.get("cycle_start") == prev_start.isoformat() or self._covers(closed, start)):
             previous = closed
         else:
             prev_kwh = await self._previous_kwh(start)
