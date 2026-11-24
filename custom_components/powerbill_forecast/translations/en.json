@@ -34,7 +34,8 @@
     "error": {
       "tiers_required": "Please enter the tiers of your custom tariff.",
       "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217",
-      "ft_entity_required": "Please choose the sensor that provides the Ft."
+      "ft_entity_required": "Please choose the sensor that provides the Ft.",
+      "invalid_currency": "Please enter the currency as a three-letter ISO code, e.g. THB or EUR."
     },
     "abort": {
       "already_configured": "This energy meter already has a forecast."
@@ -70,7 +71,8 @@
     "error": {
       "tiers_required": "Please enter the tiers of your custom tariff.",
       "invalid_tiers": "The tiers could not be read. Example: 150=3.2484, 400=4.2218, *=4.4217",
-      "ft_entity_required": "Please choose the sensor that provides the Ft."
+      "ft_entity_required": "Please choose the sensor that provides the Ft.",
+      "invalid_currency": "Please enter the currency as a three-letter ISO code, e.g. THB or EUR."
     }
   },
   "selector": {
