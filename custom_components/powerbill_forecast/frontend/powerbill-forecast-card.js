@@ -4,8 +4,8 @@ const PBF_VERSION = "0.1.5";
 const PALETTE = ["#22d3ee", "#2dd4bf", "#4ade80", "#facc15", "#fb923c", "#f97316", "#ef4444"];
 
 function tierColor(i, n) {
-  if (n <= 1) return PALETTE[0];
-  const t = i / (n - 1);
+  if (!(n > 1) || !Number.isFinite(i)) return PALETTE[0];
+  const t = Math.min(1, Math.max(0, i / (n - 1)));
   const pos = t * (PALETTE.length - 1);
   const a = Math.floor(pos);
   const b = Math.min(PALETTE.length - 1, a + 1);
