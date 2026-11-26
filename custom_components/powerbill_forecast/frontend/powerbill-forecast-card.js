@@ -1,5 +1,5 @@
 /* Powerbill Forecast card - animated tier staircase, live bill and month-end forecast. */
-const PBF_VERSION = "0.1.0";
+const PBF_VERSION = "0.1.5";
 
 const PALETTE = ["#22d3ee", "#2dd4bf", "#4ade80", "#facc15", "#fb923c", "#f97316", "#ef4444"];
 
@@ -14,6 +14,15 @@ function tierColor(i, n) {
   const cb = PALETTE[b].match(/\w\w/g).map((h) => parseInt(h, 16));
   return "#" + ca.map((v, k) => Math.round(v + (cb[k] - v) * f).toString(16).padStart(2, "0")).join("");
 }
+
+// card_data is rendered as markup: apart from a few text fields every value must be a number
+const TEXT_KEYS = new Set(["name", "tariff", "tariff_key", "currency", "symbol", "ft_period", "period", "fetched", "changed", "source", "cycle_start", "cycle_end", "date", "error"]);
+const cleanData = (v, key = "") => {
+  if (Array.isArray(v)) return v.map((x) => cleanData(x, key));
+  if (v && typeof v === "object") { const o = {}; for (const k of Object.keys(v)) o[k] = cleanData(v[k], k); return o; }
+  if (typeof v === "string" && !TEXT_KEYS.has(key)) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+  return v;
+};
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -61,7 +70,9 @@ class PowerbillForecastCard extends HTMLElement {
     if (!this._hass) return null;
     const id = this._entityId();
     const st = id && this._hass.states[id];
-    return st && st.attributes ? st.attributes.card_data : null;
+    if (!st || !st.attributes || !st.attributes.card_data) return null;
+    if (this._rawData !== st.attributes.card_data) { this._rawData = st.attributes.card_data; this._clean = cleanData(this._rawData); }
+    return this._clean;
   }
 
   _lang() {
@@ -81,7 +92,8 @@ class PowerbillForecastCard extends HTMLElement {
   }
 
   _date(iso, opts = { day: "numeric", month: "short" }) {
-    return new Intl.DateTimeFormat(this._lang(), opts).format(new Date(iso));
+    const d = new Date(iso);
+    return isNaN(d) ? "–" : new Intl.DateTimeFormat(this._lang(), opts).format(d);
   }
 
   _render() {

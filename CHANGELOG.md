@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 - 2026-11-27
+
+- **Safe rendering:** Card: apart from the known text fields every value of the bill data is forced to a number before it goes into the markup; an invalid date shows "–" instead of stopping the card.
+
 ## 0.1.4 - 2026-11-24
 
 - **Currency symbol escaped** in the card and in the bill e-mail, and the currency must now be a three-letter ISO code (e.g. THB, EUR) in the setup and options form
