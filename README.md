@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=mb26-dev&repository=ha-powerbill-forecast&category=integration"><img src="https://img.shields.io/badge/HACS-Default-41BDF5?logo=homeassistantcommunitystore&logoColor=white" alt="HACS Default"></a>
-  <a href="https://github.com/mb26-dev/ha-powerbill-forecast/releases"><img src="https://img.shields.io/badge/release-v0.1.5-blue" alt="Release v0.1.5"></a>
+  <a href="https://github.com/mb26-dev/ha-powerbill-forecast/releases"><img src=".github/badge-release.svg" alt="Release v0.1.5"></a>
   <img src="https://img.shields.io/badge/Home%20Assistant-2025.1%2B-18BCF2?logo=homeassistant&logoColor=white" alt="Home Assistant">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License MIT"></a>
   <a href="https://ko-fi.com/mb26dev"><img src="https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=ko-fi&logoColor=white" alt="Ko-fi"></a>
